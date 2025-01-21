@@ -4,14 +4,15 @@
         <static>false</static>
 
         <!-- ****************** ROBOT BASE FOOTPRINT ***************************  -->
-        <pose>0.0 0.0 0.0 0.0 0.0 0.0</pose>
+        <pose>0.0 0.0 0.3 0.0 0.0 0.0</pose>
+        <!-- <pose>0.0 0.0 0.0 0.0 0.0 0.0</pose> -->
         <link name="base_footprint" />
 
         <!-- ********************** ROBOT BASE *********************************  -->
         <link name="base_link">
 
             <collision name="base_collision">
-                <pose>0 0 0.1 0 0 0</pose>
+                <pose>0 0 0.5 0 0 0</pose>
                 <geometry>
                     <box>
                         <size>0.70 0.39 0.20</size>
@@ -392,6 +393,113 @@
                 </plugin>
             </sensor>
         </link>
+
+    <!-- *********************** RGBD CAMERA ****************************** -->
+
+        <link name="camera_link">
+            <pose>0.34 0 0.15 0 0 0</pose>
+
+            <visual name="camera_visual">
+                <pose>-0.005 0 0 0 0 0</pose>
+                <geometry>
+                    <box>
+                        <size>0.015 0.08 0.022</size>
+                    </box>
+                </geometry>
+                <material>
+                    <ambient>0 0 0 1.0</ambient>
+                    <diffuse>0 0 0 1.0</diffuse>
+                    <specular>0.0 0.0 0.0 1.0</specular>
+                    <emissive>0.0 0.0 0.0 1.0</emissive>
+                </material>
+            </visual>
+
+            <sensor name="rgbd_camera" type="camera">
+                <always_on>true</always_on>
+                <visualize>true</visualize>
+                <update_rate>30</update_rate>
+                <camera name="rgb_camera">
+                    <horizontal_fov>1.02974</horizontal_fov>
+                    <image>
+                        <width>640</width>
+                        <height>480</height>
+                        <format>R8G8B8</format>
+                    </image>
+                    <clip>
+                        <near>0.02</near>
+                        <far>100.0</far>
+                    </clip>
+                </camera>
+                <plugin name="rgb_camera_plugin" filename="libgazebo_ros_camera.so">
+                    <camera_name>rgb_camera</camera_name>
+                    <frame_name>camera_rgb_frame</frame_name>
+                </plugin>
+            </sensor>
+
+        </link>
+
+        <joint name="cam_joint" type="fixed">
+            <parent>base_link</parent>
+            <child>camera_link</child>
+            <pose>0 0 0 0 0 0</pose>
+        </joint>
+
+
+        <link name="camera_depth_frame">
+            <pose>0.34 0 0.55 0 0 0</pose>
+
+
+            <visual name="depth_link_visual">
+                <pose>-0.005 0 0 0 0 0</pose>
+                <geometry>
+                    <box>
+                        <size>0.015 0.08 0.022</size>
+                    </box>
+                </geometry>
+                <material>
+                    <ambient>0 0 0 1.0</ambient>
+                    <diffuse>0 0 0 1.0</diffuse>
+                    <specular>0.0 0.0 0.0 1.0</specular>
+                    <emissive>0.0 0.0 0.0 1.0</emissive>
+                </material>
+            </visual>
+
+            <sensor name="depth_camera" type="depth">
+                <pose> 0 0 0 0 0 0</pose>
+                <!-- <always_on>true</always_on> -->
+                <visualize>true</visualize>
+                <update_rate>10</update_rate>
+                <camera>
+                    <horizontal_fov>1.02974</horizontal_fov>
+                    <image>
+                        <format>B8G8R8</format>
+                        <width>640</width>
+                        <height>480</height>
+                    </image>
+                    <clip>
+                        <near>0.02</near>
+                        <far>20.0</far>
+                    </clip>
+                </camera>
+                <plugin name="camera_controller" filename="libgazebo_ros_depth_camera.so"> 
+                <!-- <plugin name="camera_controller" filename="libgazebo_ros_openni_kinect.so"> -->
+                    <camera_name>depth_sensor</camera_name>
+                    <frame_name>camera_depth_frame</frame_name>
+                    <output_type>sensor_msgs/PointCloud2</output_type>
+                    <min_depth>0.02</min_depth>
+                    <max_depth>20.0</max_depth>
+                </plugin>
+            </sensor>
+        </link>
+
+
+        <joint name="depth_cam_joint" type="fixed">
+            <parent>base_link</parent>
+            <child>camera_depth_frame</child>
+            <pose>0 0 0 0 0 0</pose>
+        </joint>
+
+
 
         <!-- *********************** JOINT STATE PUBLISHER *********************   -->
 
