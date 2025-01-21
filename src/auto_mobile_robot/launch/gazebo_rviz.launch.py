@@ -17,7 +17,7 @@ def generate_launch_description():
     default_launch_dir = os.path.join(pkg_share, 'launch')
     default_model_path = os.path.join(pkg_share, 'models/auto_mobile_robot.urdf')
     robot_localization_file_path = os.path.join(pkg_share, 'config/ekf.yaml') 
-    robot_name_in_urdf = 'basi_mobile_robot'
+    robot_name_in_urdf = 'auto_mobile_robot'
     default_rviz_config_path = os.path.join(pkg_share, 'rviz/urdf_config.rviz')
     world_file_name = 'smalltown.world'
     world_path = os.path.join(pkg_share, 'worlds', world_file_name)

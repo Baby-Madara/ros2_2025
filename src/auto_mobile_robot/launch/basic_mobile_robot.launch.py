@@ -12,7 +12,7 @@ def generate_launch_description():
     pkg_share = FindPackageShare(package='auto_mobile_robot').find('auto_mobile_robot')
     default_launch_dir = os.path.join(pkg_share, 'launch')
     default_model_path = os.path.join(pkg_share, 'models/auto_mobile_robot.urdf')
-    robot_name_in_urdf = 'basic_mobile_bot'
+    robot_name_in_urdf = 'auto_mobile_robot'
     default_rviz_config_path = os.path.join(pkg_share, 'rviz/urdf_config.rviz')
     
     # Launch configuration variables specific to simulation
@@ -106,4 +106,3 @@ def generate_launch_description():
     ld.add_action(start_rviz_cmd)
 
     return ld
-    basic_mobile_bot_v

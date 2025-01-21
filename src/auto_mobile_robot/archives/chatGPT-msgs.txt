@@ -1,0 +1,1346 @@
+in ros2, i have a robot in a world, in gazebo, and robot_localization, using odometry and imu (ekf), now i want to make it scan the map. here are the main files, modify them 
+1. launch file:
+```
+#!/usr/bin/python3
+
+import os
+from launch import LaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.conditions import IfCondition, UnlessCondition
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.substitutions import Command, LaunchConfiguration, PythonExpression
+from launch_ros.actions import Node
+from launch_ros.substitutions import FindPackageShare
+
+def generate_launch_description():
+
+    # Set the path to different files and folders.
+    pkg_gazebo_ros = FindPackageShare(package='gazebo_ros').find('gazebo_ros')   
+    pkg_share = FindPackageShare(package='auto_mobile_robot').find('auto_mobile_robot')
+    default_launch_dir = os.path.join(pkg_share, 'launch')
+    default_model_path = os.path.join(pkg_share, 'models/auto_mobile_robot.urdf')
+    robot_localization_file_path = os.path.join(pkg_share, 'config/ekf.yaml') 
+    robot_name_in_urdf = 'auto_mobile_robot'
+    default_rviz_config_path = os.path.join(pkg_share, 'rviz/urdf_config.rviz')
+    world_file_name = 'smalltown.world'
+    world_path = os.path.join(pkg_share, 'worlds', world_file_name)
+
+    # Launch configuration variables specific to simulation
+    headless = LaunchConfiguration('headless')
+    model = LaunchConfiguration('model')
+    rviz_config_file = LaunchConfiguration('rviz_config_file')
+    use_robot_state_pub = LaunchConfiguration('use_robot_state_pub')
+    use_rviz = LaunchConfiguration('use_rviz')
+    use_sim_time = LaunchConfiguration('use_sim_time')
+    use_simulator = LaunchConfiguration('use_simulator')
+    world = LaunchConfiguration('world')
+
+    # Declare the launch arguments  
+    declare_model_path_cmd = DeclareLaunchArgument(
+        name='model', 
+        default_value=default_model_path, 
+        description='Absolute path to robot urdf file')
+
+    declare_rviz_config_file_cmd = DeclareLaunchArgument(
+        name='rviz_config_file',
+        default_value=default_rviz_config_path,
+        description='Full path to the RVIZ config file to use')
+
+    declare_simulator_cmd = DeclareLaunchArgument(
+        name='headless',
+        default_value='False',
+        description='Whether to execute gzclient')
+
+    declare_use_robot_state_pub_cmd = DeclareLaunchArgument(
+        name='use_robot_state_pub',
+        default_value='True',
+        description='Whether to start the robot state publisher')
+
+    declare_use_rviz_cmd = DeclareLaunchArgument(
+        name='use_rviz',
+        default_value='True',
+        description='Whether to start RVIZ')
+
+    declare_use_sim_time_cmd = DeclareLaunchArgument(
+        name='use_sim_time',
+        default_value='True',
+        description='Use simulation (Gazebo) clock if true')
+
+    declare_use_simulator_cmd = DeclareLaunchArgument(
+        name='use_simulator',
+        default_value='True',
+        description='Whether to start the simulator')
+
+    declare_world_cmd = DeclareLaunchArgument(
+        name='world',
+        default_value=world_path,
+        description='Full path to the world model file to load')
+
+    # Specify the actions
+
+    # Start Gazebo server
+    start_gazebo_server_cmd = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(os.path.join(pkg_gazebo_ros, 'launch', 'gzserver.launch.py')),
+        condition=IfCondition(use_simulator),
+        launch_arguments={'world': world}.items())
+
+    # Start Gazebo client    
+    start_gazebo_client_cmd = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(os.path.join(pkg_gazebo_ros, 'launch', 'gzclient.launch.py')),
+        condition=IfCondition(PythonExpression([use_simulator, ' and not ', headless])))
+
+    # Start robot localization using an Extended Kalman filter
+    start_robot_localization_cmd = Node(
+        package='robot_localization',
+        executable='ekf_node',
+        name='ekf_filter_node',
+        output='screen',
+        parameters=[robot_localization_file_path, 
+        {'use_sim_time': use_sim_time}])
+
+    # Subscribe to the joint states of the robot, and publish the 3D pose of each link.
+    start_robot_state_publisher_cmd = Node(
+        condition=IfCondition(use_robot_state_pub),
+        package='robot_state_publisher',
+        executable='robot_state_publisher',
+        parameters=[{'use_sim_time': use_sim_time, 
+        'robot_description': Command(['xacro ', model])}],
+        arguments=[default_model_path])
+
+    # Launch RViz
+    start_rviz_cmd = Node(
+        condition=IfCondition(use_rviz),
+        package='rviz2',
+        executable='rviz2',
+        name='rviz2',
+        output='screen',
+        arguments=['-d', rviz_config_file])
+
+    # Create the launch description and populate
+    ld = LaunchDescription()
+
+    # Declare the launch options
+    ld.add_action(declare_model_path_cmd)
+    ld.add_action(declare_rviz_config_file_cmd)
+    ld.add_action(declare_simulator_cmd)
+    ld.add_action(declare_use_robot_state_pub_cmd)  
+    ld.add_action(declare_use_rviz_cmd) 
+    ld.add_action(declare_use_sim_time_cmd)
+    ld.add_action(declare_use_simulator_cmd)
+    ld.add_action(declare_world_cmd)
+
+    # Add any actions
+    ld.add_action(start_gazebo_server_cmd)
+    ld.add_action(start_gazebo_client_cmd)
+    ld.add_action(start_robot_localization_cmd)
+    ld.add_action(start_robot_state_publisher_cmd)
+    ld.add_action(start_rviz_cmd)
+
+    return ld
+```
+
+2. ekf.yaml
+```
+### ekf config file ###
+ekf_filter_node:
+    ros__parameters:
+
+        use_sim_time: true
+
+        
+# The frequency, in Hz, at which the filter will output a position estimate. Note that the filter will not begin
+# computation until it receives at least one message from one of the inputs. It will then run continuously at the
+# frequency specified here, regardless of whether it receives more measurements. Defaults to 30 if unspecified.
+        frequency: 30.0
+
+# The period, in seconds, after which we consider a sensor to have timed out. In this event, we carry out a predict
+# cycle on the EKF without correcting it. This parameter can be thought of as the minimum frequency with which the
+# filter will generate new output. Defaults to 1 / frequency if not specified.
+        sensor_timeout: 0.1
+
+# ekf_localization_node and ukf_localization_node both use a 3D omnidirectional motion model. If this parameter is
+# set to true, no 3D information will be used in your state estimate. Use this if you are operating in a planar
+# environment and want to ignore the effect of small variations in the ground plane that might otherwise be detected
+# by, for example, an IMU. Defaults to false if unspecified.
+        two_d_mode: true
+
+# Use this parameter to provide an offset to the transform generated by ekf_localization_node. This can be used for
+# future dating the transform, which is required for interaction with some other packages. Defaults to 0.0 if
+# unspecified.
+        transform_time_offset: 0.0
+
+# Use this parameter to provide specify how long the tf listener should wait for a transform to become available. 
+# Defaults to 0.0 if unspecified.
+        transform_timeout: 0.0
+
+# If you're having trouble, try setting this to true, and then echo the /diagnostics_agg topic to see if the node is
+# unhappy with any settings or data.
+        print_diagnostics: true
+
+# Debug settings. Not for the faint of heart. Outputs a ludicrous amount of information to the file specified by
+# debug_out_file. I hope you like matrices! Please note that setting this to true will have strongly deleterious
+# effects on the performance of the node. Defaults to false if unspecified.
+        debug: false
+
+# Defaults to "robot_localization_debug.txt" if unspecified. Please specify the full path.
+        debug_out_file: /path/to/debug/file.txt
+
+# Whether to broadcast the transformation over the /tf topic. Defaults to true if unspecified.
+        publish_tf: true
+
+# Whether to publish the acceleration state. Defaults to false if unspecified.
+        publish_acceleration: false
+
+# If the filter sees a jump back in time, the filter is reset (convenient for testing with rosbags!)
+        reset_on_time_jump: true
+
+# REP-105 (http://www.ros.org/reps/rep-0105.html) specifies four principal coordinate frames: base_link, odom, map, and
+# earth. base_link is the coordinate frame that is affixed to the robot. Both odom and map are world-fixed frames.
+# The robot's position in the odom frame will drift over time, but is accurate in the short term and should be
+# continuous. The odom frame is therefore the best frame for executing local motion plans. The map frame, like the odom
+# frame, is a world-fixed coordinate frame, and while it contains the most globally accurate position estimate for your
+# robot, it is subject to discrete jumps, e.g., due to the fusion of GPS data or a correction from a map-based
+# localization node. The earth frame is used to relate multiple map frames by giving them a common reference frame.
+# ekf_localization_node and ukf_localization_node are not concerned with the earth frame.
+# Here is how to use the following settings:
+# 1. Set the map_frame, odom_frame, and base_link frames to the appropriate frame names for your system.
+#     1a. If your system does not have a map_frame, just remove it, and make sure "world_frame" is set to the value of
+#         odom_frame.
+# 2. If you are fusing continuous position data such as wheel encoder odometry, visual odometry, or IMU data, set
+#   "world_frame" to your odom_frame value. This is the default behavior for robot_localization's state estimation nodes.
+# 3. If you are fusing global absolute position data that is subject to discrete jumps (e.g., GPS or position updates
+# from landmark observations) then:
+#     3a. Set your "world_frame" to your map_frame value
+#     3b. MAKE SURE something else is generating the odom->base_link transform. Note that this can even be another state
+#         estimation node from robot_localization! However, that instance should *not* fuse the global data.
+        #map_frame: map                   # Defaults to "map" if unspecified
+        odom_frame: odom                 # Defaults to "odom" if unspecified
+        base_link_frame: base_footprint  # Defaults to "base_link" if unspecified
+        world_frame: odom                # Defaults to the value of odom_frame if unspecified
+
+# The filter accepts an arbitrary number of inputs from each input message type (nav_msgs/Odometry,
+# geometry_msgs/PoseWithCovarianceStamped, geometry_msgs/TwistWithCovarianceStamped,
+# sensor_msgs/Imu). To add an input, simply append the next number in the sequence to its "base" name, e.g., odom0,
+# odom1, twist0, twist1, imu0, imu1, imu2, etc. The value should be the topic name. These parameters obviously have no
+# default values, and must be specified.
+        odom0: wheel/odometry
+
+# Each sensor reading updates some or all of the filter's state. These options give you greater control over which
+# values from each measurement are fed to the filter. For example, if you have an odometry message as input, but only
+# want to use its Z position value, then set the entire vector to false, except for the third entry. The order of the
+# values is x, y, z, roll, pitch, yaw, vx, vy, vz, vroll, vpitch, vyaw, ax, ay, az. Note that not some message types
+# do not provide some of the state variables estimated by the filter. For example, a TwistWithCovarianceStamped message
+# has no pose information, so the first six values would be meaningless in that case. Each vector defaults to all false
+# if unspecified, effectively making this parameter required for each sensor.
+        odom0_config: [true, true, true,
+                       false, false, false,
+                       true,  true,  true,
+                       false, false, true,
+                       false, false, false]
+
+        #        [x_pos   , y_pos    , z_pos,
+        #         roll    , pitch    , yaw,
+        #         x_vel   , y_vel    , z_vel,
+        #         roll_vel, pitch_vel, yaw_vel,
+        #         x_accel , y_accel  , z_accel]
+
+# If you have high-frequency data or are running with a low frequency parameter value, then you may want to increase
+# the size of the subscription queue so that more measurements are fused.
+        odom0_queue_size: 2
+
+# [ADVANCED] Large messages in ROS can exhibit strange behavior when they arrive at a high frequency. This is a result
+# of Nagle's algorithm. This option tells the ROS subscriber to use the tcpNoDelay option, which disables Nagle's
+# algorithm.
+        odom0_nodelay: false
+
+# [ADVANCED] When measuring one pose variable with two sensors, a situation can arise in which both sensors under-
+# report their covariances. This can lead to the filter rapidly jumping back and forth between each measurement as they
+# arrive. In these cases, it often makes sense to (a) correct the measurement covariances, or (b) if velocity is also
+# measured by one of the sensors, let one sensor measure pose, and the other velocity. However, doing (a) or (b) isn't
+# always feasible, and so we expose the differential parameter. When differential mode is enabled, all absolute pose
+# data is converted to velocity data by differentiating the absolute pose measurements. These velocities are then
+# integrated as usual. NOTE: this only applies to sensors that provide pose measurements; setting differential to true
+# for twist measurements has no effect.
+        odom0_differential: false
+
+# [ADVANCED] When the node starts, if this parameter is true, then the first measurement is treated as a "zero point"
+# for all future measurements. While you can achieve the same effect with the differential paremeter, the key
+# difference is that the relative parameter doesn't cause the measurement to be converted to a velocity before
+# integrating it. If you simply want your measurements to start at 0 for a given sensor, set this to true.
+        odom0_relative: false
+
+# [ADVANCED] If your data is subject to outliers, use these threshold settings, expressed as Mahalanobis distances, to
+# control how far away from the current vehicle state a sensor measurement is permitted to be. Each defaults to
+# numeric_limits<double>::max() if unspecified. It is strongly recommended that these parameters be removed if not
+# required. Data is specified at the level of pose and twist variables, rather than for each variable in isolation.
+# For messages that have both pose and twist data, the parameter specifies to which part of the message we are applying
+# the thresholds.
+        odom0_pose_rejection_threshold: 5.0
+        odom0_twist_rejection_threshold: 1.0
+
+        imu0: imu/data
+        imu0_config: [false, false, false,
+                      true,  true,  true,
+                      false, false, false,
+                      true,  true,  true,
+                      true,  true,  true]
+
+        #        [x_pos   , y_pos    , z_pos,
+        #         roll    , pitch    , yaw,
+        #         x_vel   , y_vel    , z_vel,
+        #         roll_vel, pitch_vel, yaw_vel,
+        #         x_accel , y_accel  , z_accel]
+        
+        imu0_nodelay: false
+        imu0_differential: false
+        imu0_relative: true
+        imu0_queue_size: 7
+        imu0_pose_rejection_threshold: 0.8                 # Note the difference in parameter names
+        imu0_twist_rejection_threshold: 0.8                #
+        imu0_linear_acceleration_rejection_threshold: 0.8  #
+
+# [ADVANCED] Some IMUs automatically remove acceleration due to gravity, and others don't. If yours doesn't, please set
+# this to true, and *make sure* your data conforms to REP-103, specifically, that the data is in ENU frame.
+        imu0_remove_gravitational_acceleration: true
+
+# [ADVANCED]  The EKF and UKF models follow a standard predict/correct cycle. During prediction, if there is no
+# acceleration reference, the velocity at time t+1 is simply predicted to be the same as the velocity at time t. During
+# correction, this predicted value is fused with the measured value to produce the new velocity estimate. This can be
+# problematic, as the final velocity will effectively be a weighted average of the old velocity and the new one. When
+# this velocity is the integrated into a new pose, the result can be sluggish covergence. This effect is especially
+# noticeable with LIDAR data during rotations. To get around it, users can try inflating the process_noise_covariance
+# for the velocity variable in question, or decrease the  variance of the variable in question in the measurement
+# itself. In addition, users can also take advantage of the control command being issued to the robot at the time we
+# make the prediction. If control is used, it will get converted into an acceleration term, which will be used during
+# predicition. Note that if an acceleration measurement for the variable in question is available from one of the
+# inputs, the control term will be ignored.
+# Whether or not we use the control input during predicition. Defaults to false.
+        use_control: false
+# Whether the input (assumed to be cmd_vel) is a geometry_msgs/Twist or geometry_msgs/TwistStamped message. Defaults to
+# false.
+        stamped_control: false
+# The last issued control command will be used in prediction for this period. Defaults to 0.2.
+        control_timeout: 0.2
+# Which velocities are being controlled. Order is vx, vy, vz, vroll, vpitch, vyaw.
+        control_config: [true, false, false, false, false, true]
+# Places limits on how large the acceleration term will be. Should match your robot's kinematics.
+        acceleration_limits: [1.3, 0.0, 0.0, 0.0, 0.0, 3.4]
+# Acceleration and deceleration limits are not always the same for robots.
+        deceleration_limits: [1.3, 0.0, 0.0, 0.0, 0.0, 4.5]
+# If your robot cannot instantaneously reach its acceleration limit, the permitted change can be controlled with these
+# gains
+        acceleration_gains: [0.8, 0.0, 0.0, 0.0, 0.0, 0.9]
+# If your robot cannot instantaneously reach its deceleration limit, the permitted change can be controlled with these
+# gains
+        deceleration_gains: [1.0, 0.0, 0.0, 0.0, 0.0, 1.0]
+# [ADVANCED] The process noise covariance matrix can be difficult to tune, and can vary for each application, so it is
+# exposed as a configuration parameter. This matrix represents the noise we add to the total error after each
+# prediction step. The better the omnidirectional motion model matches your system, the smaller these values can be.
+# However, if users find that a given variable is slow to converge, one approach is to increase the
+# process_noise_covariance diagonal value for the variable in question, which will cause the filter's predicted error
+# to be larger, which will cause the filter to trust the incoming measurement more during correction. The values are
+# ordered as x, y, z, roll, pitch, yaw, vx, vy, vz, vroll, vpitch, vyaw, ax, ay, az. Defaults to the matrix below if
+# unspecified.
+        process_noise_covariance: [0.05,   0.0,    0.0,    0.0,    0.0,    0.0,    0.0,     0.0,     0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,
+                                   0.0,    0.05,   0.0,    0.0,    0.0,    0.0,    0.0,     0.0,     0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,
+                                   0.0,    0.0,    0.06,   0.0,    0.0,    0.0,    0.0,     0.0,     0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,
+                                   0.0,    0.0,    0.0,    0.03,   0.0,    0.0,    0.0,     0.0,     0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,
+                                   0.0,    0.0,    0.0,    0.0,    0.03,   0.0,    0.0,     0.0,     0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,
+                                   0.0,    0.0,    0.0,    0.0,    0.0,    0.06,   0.0,     0.0,     0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,
+                                   0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.025,   0.0,     0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,
+                                   0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,     0.025,   0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,
+                                   0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,     0.0,     0.04,   0.0,    0.0,    0.0,    0.0,    0.0,    0.0,
+                                   0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,     0.0,     0.0,    0.01,   0.0,    0.0,    0.0,    0.0,    0.0,
+                                   0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,     0.0,     0.0,    0.0,    0.01,   0.0,    0.0,    0.0,    0.0,
+                                   0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,     0.0,     0.0,    0.0,    0.0,    0.02,   0.0,    0.0,    0.0,
+                                   0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,     0.0,     0.0,    0.0,    0.0,    0.0,    0.01,   0.0,    0.0,
+                                   0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,     0.0,     0.0,    0.0,    0.0,    0.0,    0.0,    0.01,   0.0,
+                                   0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,     0.0,     0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.015]
+# [ADVANCED] This represents the initial value for the state estimate error covariance matrix. Setting a diagonal
+# value (variance) to a large value will result in rapid convergence for initial measurements of the variable in
+# question. Users should take care not to use large values for variables that will not be measured directly. The values
+# are ordered as x, y, z, roll, pitch, yaw, vx, vy, vz, vroll, vpitch, vyaw, ax, ay, az. Defaults to the matrix below
+#if unspecified.
+        initial_estimate_covariance: [1e-9,   0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,     0.0,     0.0,     0.0,    0.0,    0.0,
+                                      0.0,    1e-9,   0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,     0.0,     0.0,     0.0,    0.0,    0.0,
+                                      0.0,    0.0,    1e-9,   0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,     0.0,     0.0,     0.0,    0.0,    0.0,
+                                      0.0,    0.0,    0.0,    1e-9,   0.0,    0.0,    0.0,    0.0,    0.0,    0.0,     0.0,     0.0,     0.0,    0.0,    0.0,
+                                      0.0,    0.0,    0.0,    0.0,    1e-9,   0.0,    0.0,    0.0,    0.0,    0.0,     0.0,     0.0,     0.0,    0.0,    0.0,
+                                      0.0,    0.0,    0.0,    0.0,    0.0,    1e-9,   0.0,    0.0,    0.0,    0.0,     0.0,     0.0,     0.0,    0.0,    0.0,
+                                      0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    1e-9,   0.0,    0.0,    0.0,     0.0,     0.0,     0.0,    0.0,    0.0,
+                                      0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    1e-9,   0.0,    0.0,     0.0,     0.0,     0.0,    0.0,    0.0,
+                                      0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    1e-9,   0.0,     0.0,     0.0,     0.0,    0.0,    0.0,
+                                      0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    1e-9,    0.0,     0.0,     0.0,    0.0,    0.0,
+                                      0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,     1e-9,    0.0,     0.0,    0.0,    0.0,
+                                      0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,     0.0,     1e-9,    0.0,    0.0,    0.0,
+                                      0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,     0.0,     0.0,     1e-9,   0.0,    0.0,
+                                      0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,     0.0,     0.0,     0.0,    1e-9,   0.0,
+                                      0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,    0.0,     0.0,     0.0,     0.0,    0.0,    1e-9]
+```
+3. model.sdf
+```
+<?xml version="1.0"?>
+<sdf version="1.7">
+    <model name="auto_mobile_robot">
+        <static>false</static>
+
+        <!-- ****************** ROBOT BASE FOOTPRINT ***************************  -->
+        <pose>0.0 0.0 0.0 0.0 0.0 0.0</pose>
+        <link name="base_footprint" />
+
+        <!-- ********************** ROBOT BASE *********************************  -->
+        <link name="base_link">
+
+            <collision name="base_collision">
+                <pose>0 0 0.1 0 0 0</pose>
+                <geometry>
+                    <box>
+                        <size>0.70 0.39 0.20</size>
+                    </box>
+                </geometry>
+            </collision>
+
+            <visual name="base_visual">
+                <pose>0 0 -0.05 1.5707963267949 0 3.141592654</pose>
+                <geometry>
+                    <mesh>          
+                        <uri>file:///home/pita/ros2_2025/src/auto_mobile_robot/models/meshes/robot_base.stl</uri>
+                        <scale>1.0 1.0 1.0</scale>
+                    </mesh>
+                </geometry>
+                <material>
+                    <ambient>1.0 0.0 1.0 1.0</ambient>
+                    <diffuse>1.0 0.0 1.0 1.0</diffuse>
+                    <specular>0.0 0.0 0.0 1.0</specular>
+                    <emissive>0.0 0.0 0.0 1.0</emissive>
+                </material>
+            </visual>
+        </link>
+
+        <!-- *********************** IMU SENSOR SETUP **************************  -->
+        <link name="imu_link">
+            <gravity>true</gravity>
+            <sensor name="bmb_imu" type="imu">
+                <always_on>true</always_on>
+                <update_rate>100</update_rate>
+                <visualize>true</visualize>
+                <imu>
+                    <orientation>
+                        <x>
+                            <noise type="gaussian">
+                                <mean>0.0</mean>
+                                <stddev>2e-3</stddev>
+                            </noise>
+                        </x>
+                        <y>
+                            <noise type="gaussian">
+                                <mean>0.0</mean>
+                                <stddev>2e-3</stddev>
+                            </noise>
+                        </y>
+                        <z>
+                            <noise type="gaussian">
+                                <mean>0.0</mean>
+                                <stddev>2e-3</stddev>
+                            </noise>
+                        </z>
+                    </orientation>
+                    <angular_velocity>
+                        <x>
+                            <noise type="gaussian">
+                                <mean>0.0</mean>
+                                <stddev>2e-4</stddev>
+                            </noise>
+                        </x>
+                        <y>
+                            <noise type="gaussian">
+                                <mean>0.0</mean>
+                                <stddev>2e-4</stddev>
+                            </noise>
+                        </y>
+                        <z>
+                            <noise type="gaussian">
+                                <mean>0.0</mean>
+                                <stddev>2e-4</stddev>
+                            </noise>
+                        </z>
+                    </angular_velocity>
+                    <linear_acceleration>
+                        <x>
+                            <noise type="gaussian">
+                                <mean>0.0</mean>
+                                <stddev>1.7e-2</stddev>
+                            </noise>
+                        </x>
+                        <y>
+                            <noise type="gaussian">
+                                <mean>0.0</mean>
+                                <stddev>1.7e-2</stddev>
+                            </noise>
+                        </y>
+                        <z>
+                            <noise type="gaussian">
+                                <mean>0.0</mean>
+                                <stddev>1.7e-2</stddev>
+                            </noise>
+                        </z>
+                    </linear_acceleration>
+                </imu>
+                <plugin name="basic_mobile_bot_imu" filename="libgazebo_ros_imu_sensor.so">
+                    <initial_orientation_as_reference>false</initial_orientation_as_reference>
+                    <frame_name>imu_link</frame_name>
+                    <ros>
+                        <namespace>/imu</namespace>
+                        <remapping>~/out:=data</remapping>
+                    </ros>
+                </plugin>
+            </sensor>
+        </link>
+
+        <!-- *********************** GPS SETUP *********************************  -->
+        <link name="gps_link">
+            <sensor name="bmb_gps" type="gps">
+                <always_on>true</always_on>
+                <update_rate>10.0</update_rate>
+                <gps>
+                    <position_sensing>
+                        <horizontal>
+                            <noise type="gaussian">
+                                <mean>0.0</mean>
+                                <stddev>1e-2</stddev>
+                            </noise>
+                        </horizontal>
+                        <vertical>
+                            <noise type="gaussian">
+                                <mean>0.0</mean>
+                                <stddev>1</stddev>
+                            </noise>
+                        </vertical>
+                    </position_sensing>
+                </gps>
+                <plugin name="basic_mobile_bot_gps" filename="libgazebo_ros_gps_sensor.so">
+                    <ros>
+                        <remapping>~/out:=gps/fix</remapping>
+                    </ros>
+                </plugin>
+            </sensor>
+        </link>
+
+        <!-- *********************** DRIVE WHEELS ******************************  -->
+        <link name="drivewhl_l_link">
+            <pose>-0.221 0.23 -0.05 0 1.570796 1.570796</pose>
+
+            <collision name="drivewhl_l_collision">
+                <geometry>
+                    <cylinder>
+                        <radius>0.14</radius>
+                        <length>0.06</length>
+                    </cylinder>
+                </geometry>
+            </collision>
+
+            <visual name="drivewhl_l_visual">
+                <geometry>
+                    <cylinder>
+                        <radius>0.14</radius>
+                        <length>0.06</length>
+                    </cylinder>
+                </geometry>
+            </visual>
+        </link>
+
+        <link name="drivewhl_r_link">
+            <pose>-0.221 -0.23 -0.05 0 1.570796 1.570796</pose>
+
+            <collision name="drivewhl_r_collision">
+                <geometry>
+                    <cylinder>
+                        <radius>0.14</radius>
+                        <length>0.06</length>
+                    </cylinder>
+                </geometry>
+            </collision>
+
+            <visual name="drivewhl_r_visual">
+                <geometry>
+                    <cylinder>
+                        <radius>0.14</radius>
+                        <length>0.06</length>
+                    </cylinder>
+                </geometry>
+            </visual>
+        </link>
+
+        <!-- *********************** CASTER WHEEL ******************************  -->
+        <link name='front_caster'>
+            <pose>0.217 0 -0.1 0 0 0</pose>
+            <collision name='collision'>
+                <geometry>
+                    <sphere>
+                        <radius>0.09</radius>
+                    </sphere>
+                </geometry>
+                <surface>
+                    <friction>
+                        <ode>
+                            <mu>0.01</mu>
+                            <mu2>0.01</mu2>
+                            <slip1>1.0</slip1>
+                            <slip2>1.0</slip2>
+                        </ode>
+                    </friction>
+                </surface>
+            </collision>
+            <visual name="front_caster_visual">
+                <geometry>
+                    <sphere>
+                        <radius>0.09</radius>
+                    </sphere>
+                </geometry>
+            </visual>
+        </link>
+
+        <!-- ************************ JOINTS ***********************************  -->
+        <!-- Pose of the joint is the same as the child link frame -->
+        <!-- Axis is the axis of rotation relative to the child link frame -->
+
+        <joint name="base_joint" type="fixed">
+            <parent>base_footprint</parent>
+            <child>base_link</child>
+            <pose>0 0 0 0 0 0</pose>
+        </joint>
+
+        <joint name="drivewhl_l_joint" type="revolute">
+            <parent>base_link</parent>
+            <child>drivewhl_l_link</child>
+            <pose>0 0 0 0 0 0</pose>
+            <axis>
+                <xyz>0 0 1</xyz>
+            </axis>
+        </joint>
+
+        <joint name="drivewhl_r_joint" type="revolute">
+            <parent>base_link</parent>
+            <child>drivewhl_r_link</child>
+            <pose>0 0 0 0 0 0</pose>
+            <axis>
+                <xyz>0 0 1</xyz>
+            </axis>
+        </joint>
+
+        <joint name='caster_joint' type='fixed'>
+            <parent>base_link</parent>
+            <child>front_caster</child>
+            <pose>0 0 0 0 0 0</pose>
+        </joint>
+
+        <joint name="imu_joint" type="fixed">
+            <parent>base_link</parent>
+            <child>imu_link</child>
+            <pose>0 0 0 0 0 0</pose>
+        </joint>
+
+        <joint name="gps_joint" type="fixed">
+            <parent>base_link</parent>
+            <child>gps_link</child>
+            <pose>0 0 0 0 0 0</pose>
+        </joint>
+
+        <joint name="lidar_joint" type="fixed">
+            <parent>base_link</parent>
+            <child>lidar_link</child>
+            <pose>0.215 0 0.13 0 0 0</pose>
+        </joint>
+
+        <!-- *********************** WHEEL ODOMETRY ***************************    -->
+        <plugin name="basic_mobile_bot_diff_drive" filename="libgazebo_ros_diff_drive.so">
+
+            <update_rate>30</update_rate>
+
+            <!-- wheels -->
+            <left_joint>drivewhl_l_joint</left_joint>
+            <right_joint>drivewhl_r_joint</right_joint>
+
+            <!-- kinematics -->
+            <wheel_separation>0.52</wheel_separation>
+            <wheel_diameter>0.28</wheel_diameter>
+
+            <!-- limits -->
+            <max_wheel_torque>20</max_wheel_torque>
+            <max_wheel_acceleration>1.0</max_wheel_acceleration>
+
+            <!-- Receive velocity commands on this ROS topic -->
+            <command_topic>cmd_vel</command_topic>
+
+            <!-- output -->
+            <!-- When false, publish no wheel odometry data to a ROS topic -->
+            <publish_odom>true</publish_odom>
+
+            <!-- When true, publish coordinate transform from odom to base_footprint -->
+            <!-- I usually use the robot_localization package to publish this transform -->
+            <publish_odom_tf>false</publish_odom_tf>
+
+            <!-- When true, publish coordinate transform from base_link to the wheels -->
+            <!-- The robot_state_publisher package is often used to publish this transform -->
+            <publish_wheel_tf>false</publish_wheel_tf>
+
+            <odometry_topic>odom</odometry_topic>
+            <odometry_frame>odom</odometry_frame>
+            <robot_base_frame>base_footprint</robot_base_frame>
+
+            <!-- Odometry source, 0 for ENCODER, 1 for WORLD, defaults to WORLD -->
+            <odometry_source>0</odometry_source>
+
+            <!-- Change the ROS topic we will publish the odometry data to -->
+            <ros>
+                <remapping>odom:=wheel/odometry</remapping>
+            </ros>
+
+        </plugin>
+
+        <!-- ****************************** LIDAR *****************************    -->
+        <link name="lidar_link">
+            <inertial>
+                <pose>0.215 0 0.13 0 0 0</pose>
+                <inertia>
+                    <ixx>0.001</ixx>
+                    <ixy>0.000</ixy>
+                    <ixz>0.000</ixz>
+                    <iyy>0.001</iyy>
+                    <iyz>0.000</iyz>
+                    <izz>0.001</izz>
+                </inertia>
+                <mass>0.114</mass>
+            </inertial>
+
+            <collision name="lidar_collision">
+                <pose>0.215 0 0.13 0 0 0</pose>
+                <geometry>
+                    <cylinder>
+                        <radius>0.0508</radius>
+                        <length>0.18</length>
+                    </cylinder>
+                </geometry>
+            </collision>
+
+            <visual name="lidar_visual">
+                <pose>0.215 0 0.13 0 0 0</pose>
+                <geometry>
+                    <cylinder>
+                        <radius>0.0508</radius>
+                        <length>0.18</length>
+                    </cylinder>
+                </geometry>
+                <material>
+                    <ambient>0.0 0.0 0.0 1.0</ambient>
+                    <diffuse>0.0 0.0 0.0 1.0</diffuse>
+                    <specular>0.0 0.0 0.0 1.0</specular>
+                    <emissive>0.0 0.0 0.0 1.0</emissive>
+                </material>
+            </visual>
+
+            <sensor name="lidar" type="ray">
+                <pose>0.215 0 0.215 0 0 0</pose>
+                <always_on>true</always_on>
+                <visualize>true</visualize>
+                <update_rate>5</update_rate>
+                <ray>
+                    <scan>
+                        <horizontal>
+                            <samples>360</samples>
+                            <resolution>1.00000</resolution>
+                            <min_angle>0.000000</min_angle>
+                            <max_angle>6.280000</max_angle>
+                        </horizontal>
+                    </scan>
+                    <range>
+                        <min>0.120000</min>
+                        <max>3.5</max>
+                        <resolution>0.015000</resolution>
+                    </range>
+                    <noise>
+                        <type>gaussian</type>
+                        <mean>0.0</mean>
+                        <stddev>0.01</stddev>
+                    </noise>
+                </ray>
+                <plugin name="scan" filename="libgazebo_ros_ray_sensor.so">
+                    <ros>
+                        <remapping>~/out:=scan</remapping>
+                    </ros>
+                    <output_type>sensor_msgs/LaserScan</output_type>
+                    <frame_name>lidar_link</frame_name>
+                </plugin>
+            </sensor>
+        </link>
+
+        <!-- *********************** JOINT STATE PUBLISHER *********************   -->
+
+        <plugin name="basic_mobile_bot_joint_state"
+            filename="libgazebo_ros_joint_state_publisher.so">
+            <ros>
+                <remapping>~/out:=joint_states</remapping>
+            </ros>
+            <update_rate>30</update_rate>
+            <joint_name>drivewhl_l_joint</joint_name>
+            <joint_name>drivewhl_r_joint</joint_name>
+        </plugin>
+
+    </model>
+</sdf>
+```
+4. nav2_params.yaml
+```
+<?xml version="1.0"?>
+<robot name="auto_mobile_robot" xmlns:xacro="http://ros.org/wiki/xacro">
+
+    <!-- ****************** ROBOT CONSTANTS *******************************  -->
+    <!-- Define the size of the robot's main chassis in meters -->
+    <xacro:property name="base_width" value="0.39" />
+    <xacro:property name="base_length" value="0.70" />
+    <xacro:property name="base_height" value="0.20" />
+
+    <!-- Define the shape of the robot's two back wheels in meters -->
+    <xacro:property name="wheel_radius" value="0.14" />
+    <xacro:property name="wheel_width" value="0.06" />
+
+    <!-- x-axis points forward, y-axis points to left, z-axis points upwards -->
+    <!-- Define the gap between the wheel and chassis along y-axis in meters -->
+    <xacro:property name="wheel_ygap" value="0.035" />
+
+    <!-- Position the wheels along the z-axis -->
+    <xacro:property name="wheel_zoff" value="0.05" />
+
+    <!-- Position the wheels along the x-axis -->
+    <xacro:property name="wheel_xoff" value="0.221" />
+
+    <!-- Position the caster wheel along the x-axis -->
+    <xacro:property name="caster_xoff" value="0.217" />
+
+    <!-- Define intertial property macros  -->
+    <xacro:macro name="box_inertia" params="m w h d">
+        <inertial>
+            <origin xyz="0 0 0" rpy="${pi/2} 0 ${pi/2}" />
+            <mass value="${m}" />
+            <inertia ixx="${(m/12) * (h*h + d*d)}" ixy="0.0" ixz="0.0" iyy="${(m/12) * (w*w + d*d)}"
+                iyz="0.0" izz="${(m/12) * (w*w + h*h)}" />
+        </inertial>
+    </xacro:macro>
+
+    <xacro:macro name="cylinder_inertia" params="m r h">
+        <inertial>
+            <origin xyz="0 0 0" rpy="${pi/2} 0 0" />
+            <mass value="${m}" />
+            <inertia ixx="${(m/12) * (3*r*r + h*h)}" ixy="0" ixz="0" iyy="${(m/12) * (3*r*r + h*h)}"
+                iyz="0" izz="${(m/2) * (r*r)}" />
+        </inertial>
+    </xacro:macro>
+
+    <xacro:macro name="sphere_inertia" params="m r">
+        <inertial>
+            <mass value="${m}" />
+            <inertia ixx="${(2/5) * m * (r*r)}" ixy="0.0" ixz="0.0" iyy="${(2/5) * m * (r*r)}"
+                iyz="0.0" izz="${(2/5) * m * (r*r)}" />
+        </inertial>
+    </xacro:macro>
+
+    <!-- ****************** ROBOT BASE FOOTPRINT ***************************  -->
+    <!-- Define the center of the main robot chassis projected on the ground -->
+    <link name="base_footprint" />
+
+    <!-- The base footprint of the robot is located underneath the chassis -->
+    <joint name="base_joint" type="fixed">
+        <parent link="base_footprint" />
+        <child link="base_link" />
+        <origin xyz="0.0 0.0 ${(wheel_radius+wheel_zoff)}" rpy="0 0 0" />
+    </joint>
+
+    <!-- ********************** ROBOT BASE *********************************  -->
+    <link name="base_link">
+        <visual>
+            <origin xyz="0 0 -0.05" rpy="1.5707963267949 0 3.141592654" />
+            <geometry>
+                <mesh filename="package://auto_mobile_robot/meshes/robot_base.stl" />
+            </geometry>
+            <material name="Red">
+                <color rgba="${255/255} ${0/255} ${0/255} 1.0" />
+            </material>
+        </visual>
+
+        <collision>
+            <geometry>
+                <box size="${base_length} ${base_width} ${base_height}" />
+            </geometry>
+        </collision>
+
+        <xacro:box_inertia m="40.0" w="${base_width}" d="${base_length}" h="${base_height}" />
+
+    </link>
+
+    <gazebo reference="base_link">
+        <material>Gazebo/Red</material>
+    </gazebo>
+
+    <!-- *********************** DRIVE WHEELS ******************************  -->
+
+    <xacro:macro name="wheel" params="prefix x_reflect y_reflect">
+        <link name="${prefix}_link">
+            <visual>
+                <origin xyz="0 0 0" rpy="1.5707963267949 0 0" />
+                <geometry>
+                    <cylinder radius="${wheel_radius}" length="${wheel_width}" />
+                </geometry>
+                <material name="White">
+                    <color rgba="${255/255} ${255/255} ${255/255} 1.0" />
+                </material>
+            </visual>
+
+            <collision>
+                <origin xyz="0 0 0" rpy="${pi/2} 0 0" />
+                <geometry>
+                    <cylinder radius="${wheel_radius}" length="${wheel_width}" />
+                </geometry>
+            </collision>
+
+            <xacro:cylinder_inertia m="110.5" r="${wheel_radius}" h="${wheel_width}" />
+
+        </link>
+
+        <!-- Connect the wheels to the base_link at the appropriate location, and 
+         define a continuous joint to allow the wheels to freely rotate about
+         an axis -->
+        <joint name="${prefix}_joint" type="revolute">
+            <parent link="base_link" />
+            <child link="${prefix}_link" />
+            <origin
+                xyz="${x_reflect*wheel_xoff} ${y_reflect*(base_width/2+wheel_ygap)} ${-wheel_zoff}"
+                rpy="0 0 0" />
+            <limit upper="3.1415" lower="-3.1415" effort="30" velocity="5.0" />
+            <axis xyz="0 1 0" />
+        </joint>
+    </xacro:macro>
+
+    <!-- Instantiate two wheels using the macro we just made through the 
+       xacro:wheel tags. We also define the parameters to have one wheel
+       on both sides at the back of our robot (i.e. x_reflect=-1). -->
+    <xacro:wheel prefix="drivewhl_l" x_reflect="-1" y_reflect="1" />
+    <xacro:wheel prefix="drivewhl_r" x_reflect="-1" y_reflect="-1" />
+
+    <!-- *********************** CASTER WHEEL ******************************  -->
+    <!-- We add a caster wheel. It will be modeled as sphere.
+       We define the wheel’s geometry, material and the joint to connect it to 
+       base_link at the appropriate location. -->
+    <link name="front_caster">
+        <visual>
+            <geometry>
+                <sphere radius="${(wheel_radius+wheel_zoff-(base_height/2))}" />
+            </geometry>
+            <material name="White">
+                <color rgba="${255/255} ${255/255} ${255/255} 1.0" />
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <sphere radius="${(wheel_radius+wheel_zoff-(base_height/2))}" />
+            </geometry>
+        </collision>
+        <xacro:sphere_inertia m="10.05" r="${(wheel_radius+wheel_zoff-(base_height/2))}" />
+    </link>
+
+    <gazebo reference="front_caster">
+        <mu1>0.01</mu1>
+        <mu2>0.01</mu2>
+        <material>Gazebo/White</material>
+    </gazebo>
+
+    <joint name="caster_joint" type="fixed">
+        <parent link="base_link" />
+        <child link="front_caster" />
+        <origin xyz="${caster_xoff} 0.0 ${-(base_height/2)}" rpy="0 0 0" />
+    </joint>
+
+    <!-- *********************** IMU SETUP *********************************  -->
+    <!-- Each sensor must be attached to a link.                              -->
+
+    <joint name="imu_joint" type="fixed">
+        <parent link="base_link" />
+        <child link="imu_link" />
+        <origin xyz="-0.10 0 0.05" rpy="0 0 0" />
+    </joint>
+
+    <link name="imu_link" />
+
+    <!-- *********************** GPS SETUP **********************************  -->
+    <joint name="gps_joint" type="fixed">
+        <parent link="base_link" />
+        <child link="gps_link" />
+        <origin xyz="0.10 0 0.05" rpy="0 0 0" />
+    </joint>
+
+    <link name="gps_link" />
+
+    <!-- *********************** LIDAR SETUP **********************************  -->
+    <joint name="lidar_joint" type="fixed">
+        <parent link="base_link" />
+        <child link="lidar_link" />
+        <origin xyz="0.215 0 0.13" rpy="0 0 0" />
+    </joint>
+
+    <link name="lidar_link">
+
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <cylinder radius="0.0508" length="0.18" />
+            </geometry>
+        </collision>
+
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <cylinder radius="0.0508" length="0.18" />
+            </geometry>
+            <material name="Black">
+                <color rgba="${0/255} ${0/255} ${0/255} 1.0" />
+            </material>
+        </visual>
+
+        <inertial>
+            <mass value="0.114" />
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <inertia ixx="0.001" ixy="0" ixz="0" iyy="0.001" iyz="0" izz="0.001" />
+        </inertial>
+    </link>
+
+</robot>
+```
+5. urdf_config.rviz
+```
+Panels:
+  - Class: rviz_common/Displays
+    Help Height: 78
+    Name: Displays
+    Property Tree Widget:
+      Expanded:
+        - /Global Options1
+        - /Status1
+        - /LaserScan1
+        - /Odometry1
+        - /Odometry2
+      Splitter Ratio: 0.5
+    Tree Height: 729
+Visualization Manager:
+  Class: ""
+  Displays:
+    - Alpha: 0.5
+      Cell Size: 1
+      Class: rviz_default_plugins/Grid
+      Color: 160; 160; 164
+      Enabled: true
+      Line Style:
+        Line Width: 0.029999999329447746
+        Value: Lines
+      Name: Grid
+      Normal Cell Count: 0
+      Offset:
+        X: 0
+        Y: 0
+        Z: 0
+      Plane: XY
+      Plane Cell Count: 10
+      Reference Frame: <Fixed Frame>
+      Value: true
+    - Alpha: 0.6000000238418579
+      Class: rviz_default_plugins/RobotModel
+      Collision Enabled: false
+      Description File: ""
+      Description Source: Topic
+      Description Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /robot_description
+      Enabled: true
+      Links:
+        All Links Enabled: true
+        Expand Joint Details: false
+        Expand Link Details: false
+        Expand Tree: false
+        Link Tree Style: Links in Alphabetic Order
+        base_footprint:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        base_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        drivewhl_l_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        drivewhl_r_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        front_caster:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+        gps_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        imu_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        lidar_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+          Value: true
+      Mass Properties:
+        Inertia: false
+        Mass: false
+      Name: RobotModel
+      TF Prefix: ""
+      Update Interval: 0
+      Value: true
+      Visual Enabled: true
+    - Class: rviz_default_plugins/TF
+      Enabled: true
+      Frame Timeout: 15
+      Frames:
+        All Enabled: true
+        base_footprint:
+          Value: true
+        base_link:
+          Value: true
+        drivewhl_l_link:
+          Value: true
+        drivewhl_r_link:
+          Value: true
+        front_caster:
+          Value: true
+        gps_link:
+          Value: true
+        imu_link:
+          Value: true
+        lidar_link:
+          Value: true
+        odom:
+          Value: true
+      Marker Scale: 0.30000001192092896
+      Name: TF
+      Show Arrows: true
+      Show Axes: true
+      Show Names: true
+      Tree:
+        base_footprint:
+          base_link:
+            drivewhl_l_link:
+              {}
+            drivewhl_r_link:
+              {}
+            front_caster:
+              {}
+            gps_link:
+              {}
+            imu_link:
+              {}
+            lidar_link:
+              {}
+        odom:
+          {}
+      Update Interval: 0
+      Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz_default_plugins/LaserScan
+      Color: 255; 255; 255
+      Color Transformer: Intensity
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 0
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: LaserScan
+      Position Transformer: XYZ
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.05000000074505806
+      Style: Flat Squares
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /scan
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
+    - Angle Tolerance: 0.10000000149011612
+      Class: rviz_default_plugins/Odometry
+      Covariance:
+        Orientation:
+          Alpha: 0.5
+          Color: 255; 255; 127
+          Color Style: Unique
+          Frame: Local
+          Offset: 1
+          Scale: 1
+          Value: true
+        Position:
+          Alpha: 0.30000001192092896
+          Color: 204; 51; 204
+          Scale: 1
+          Value: true
+        Value: true
+      Enabled: false
+      Keep: 100
+      Name: Odometry
+      Position Tolerance: 0.10000000149011612
+      Shape:
+        Alpha: 1
+        Axes Length: 1
+        Axes Radius: 0.10000000149011612
+        Color: 255; 25; 0
+        Head Length: 0.30000001192092896
+        Head Radius: 0.10000000149011612
+        Shaft Length: 1
+        Shaft Radius: 0.05000000074505806
+        Value: Arrow
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /wheel/odometry
+      Value: false
+    - Angle Tolerance: 0.10000000149011612
+      Class: rviz_default_plugins/Odometry
+      Covariance:
+        Orientation:
+          Alpha: 0.5
+          Color: 255; 255; 127
+          Color Style: Unique
+          Frame: Local
+          Offset: 1
+          Scale: 1
+          Value: true
+        Position:
+          Alpha: 0.30000001192092896
+          Color: 204; 51; 204
+          Scale: 1
+          Value: true
+        Value: true
+      Enabled: true
+      Keep: 100
+      Name: Odometry
+      Position Tolerance: 0.10000000149011612
+      Shape:
+        Alpha: 1
+        Axes Length: 1
+        Axes Radius: 0.10000000149011612
+        Color: 255; 25; 0
+        Head Length: 0.30000001192092896
+        Head Radius: 0.10000000149011612
+        Shaft Length: 1
+        Shaft Radius: 0.05000000074505806
+        Value: Arrow
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /odometry/filtered
+      Value: true
+  Enabled: true
+  Global Options:
+    Background Color: 48; 48; 48
+    Fixed Frame: odom
+    Frame Rate: 30
+  Name: root
+  Tools:
+    - Class: rviz_default_plugins/Interact
+      Hide Inactive Objects: true
+    - Class: rviz_default_plugins/MoveCamera
+    - Class: rviz_default_plugins/Select
+    - Class: rviz_default_plugins/FocusCamera
+    - Class: rviz_default_plugins/Measure
+      Line color: 128; 128; 0
+    - Class: rviz_default_plugins/SetInitialPose
+      Covariance x: 0.25
+      Covariance y: 0.25
+      Covariance yaw: 0.06853891909122467
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /initialpose
+    - Class: rviz_default_plugins/PublishPoint
+      Single click: true
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /clicked_point
+    - Class: nav2_rviz_plugins/GoalTool
+  Transformation:
+    Current:
+      Class: rviz_default_plugins/TF
+  Value: true
+  Views:
+    Current:
+      Class: rviz_default_plugins/Orbit
+      Distance: 13.381129264831543
+      Enable Stereo Rendering:
+        Stereo Eye Separation: 0.05999999865889549
+        Stereo Focal Distance: 1
+        Swap Stereo Eyes: false
+        Value: false
+      Focal Point:
+        X: 0.20192070305347443
+        Y: -0.25447213649749756
+        Z: 0.7807576060295105
+      Focal Shape Fixed Size: true
+      Focal Shape Size: 0.05000000074505806
+      Invert Z Axis: false
+      Name: Current View
+      Near Clip Distance: 0.009999999776482582
+      Pitch: 0.9203974604606628
+      Target Frame: <Fixed Frame>
+      Value: Orbit (rviz)
+      Yaw: 4.220413684844971
+    Saved: ~
+Window Geometry:
+  Displays:
+    collapsed: false
+  Height: 958
+  Hide Left Dock: false
+  Hide Right Dock: false
+  QMainWindow State: 000000ff00000000fd00000001000000000000015600000364fc0200000001fb000000100044006900730070006c006100790073010000003d00000364000000c900ffffff000006240000036400000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  Width: 1920
+  X: 0
+  Y: 27
+```
