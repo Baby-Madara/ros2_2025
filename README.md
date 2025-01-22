@@ -2,9 +2,9 @@
 
 ## Roadmap for What to Learn in ROS2 and the Related Activities
 
-| ## | Topic                       | Done | Description |
-|----|-----------------------------|:----:|---------------------------------------------------------------------------------------|
-| 00 | What are `ROS2`,`Node`,`Topic`,`Message`,`Publisher`,`Subscriber`,`URDF`,`SDF`,`Launch_File`          |  ✅  |             |
+| ## | Topic                                                                                                 | Done | Description |
+|----|-------------------------------------------------------------------------------------------------------|:----:|-------------|
+| 00 | What are `ROS2`, `Node`, `Topic`, `Message`, `Publisher`, `Subscriber`, `URDF`, `SDF`, `Launch_File`  |  ✅  |             |
 | 01 | visaulize robot in `RVIZ`                                                                             |  ✅  |             |
 | 02 | Simulating robot in `Gazebo`                                                                          |  ✅  |             |
 | 03 | Simulating robot in `Gazebo_Ignition`                                                                 |      |             |
