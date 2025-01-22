@@ -16,6 +16,18 @@ install(
   DESTINATION share/${PROJECT_NAME}
 )
 
+ament_python_install_package(${PROJECT_NAME})
+
+
+file(GLOB SCRIPT_FILES "${CMAKE_CURRENT_SOURCE_DIR}/scripts/*.py")
+
+install(
+  PROGRAMS ${SCRIPT_FILES}
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   # the following line skips the linter which checks for copyrights
