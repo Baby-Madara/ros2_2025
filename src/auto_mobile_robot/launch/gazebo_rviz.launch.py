@@ -15,26 +15,26 @@ from launch_ros.substitutions import FindPackageShare
 def generate_launch_description():
 
     # Set the path to different files and folders.
-    pkg_gazebo_ros = FindPackageShare(package='gazebo_ros').find('gazebo_ros')   
-    pkg_share = FindPackageShare(package='auto_mobile_robot').find('auto_mobile_robot')
-    default_launch_dir = os.path.join(pkg_share, 'launch')
-    default_model_path = os.path.join(pkg_share, 'models/auto_mobile_robot.urdf')
-    robot_localization_file_path = os.path.join(pkg_share, 'config/ekf.yaml') 
-    robot_name_in_urdf = 'auto_mobile_robot'
-    default_rviz_config_path = os.path.join(pkg_share, 'rviz/urdf_config.rviz')
-    # world_file_name = 'house.sdf'
-    world_file_name = 'smalltown.world'
-    world_path = os.path.join(pkg_share, 'worlds', world_file_name)
+    pkg_gazebo_ros                  = FindPackageShare(package='gazebo_ros').find('gazebo_ros')   
+    pkg_share                       = FindPackageShare(package='auto_mobile_robot').find('auto_mobile_robot')
+    default_launch_dir              = os.path.join(pkg_share, 'launch')
+    default_model_path              = os.path.join(pkg_share, 'models/auto_mobile_robot.urdf')
+    robot_localization_file_path    = os.path.join(pkg_share, 'config/ekf.yaml') 
+    robot_name_in_urdf              = 'auto_mobile_robot'
+    default_rviz_config_path        = os.path.join(pkg_share, 'rviz/urdf_config.rviz')
+    # world_file_name               = 'house.sdf'
+    world_file_name                 = 'smalltown.world'
+    world_path                      = os.path.join(pkg_share, 'worlds', world_file_name)
 
     # Launch configuration variables specific to simulation
-    headless = LaunchConfiguration('headless')
-    model = LaunchConfiguration('model')
-    rviz_config_file = LaunchConfiguration('rviz_config_file')
-    use_robot_state_pub = LaunchConfiguration('use_robot_state_pub')
-    use_rviz = LaunchConfiguration('use_rviz')
-    use_sim_time = LaunchConfiguration('use_sim_time')
-    use_simulator = LaunchConfiguration('use_simulator')
-    world = LaunchConfiguration('world')
+    headless               = LaunchConfiguration('headless')
+    model                  = LaunchConfiguration('model')
+    rviz_config_file       = LaunchConfiguration('rviz_config_file')
+    use_robot_state_pub    = LaunchConfiguration('use_robot_state_pub')
+    use_rviz               = LaunchConfiguration('use_rviz')
+    use_sim_time           = LaunchConfiguration('use_sim_time')
+    use_simulator          = LaunchConfiguration('use_simulator')
+    world                  = LaunchConfiguration('world')
 
     # Declare the launch arguments  
     declare_model_path_cmd = DeclareLaunchArgument(
@@ -91,6 +91,14 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(os.path.join(pkg_gazebo_ros, 'launch', 'gzclient.launch.py')),
         condition=IfCondition(PythonExpression([use_simulator, ' and not ', headless])))
 
+
+    # Launch the rqt_robot_steering node
+    start_rqt_robot_steering_node = Node(
+        package='rqt_robot_steering',
+        executable='rqt_robot_steering',
+        name='rqt_robot_steering',
+        output='screen')
+
     # Start robot localization using an Extended Kalman filter
     start_robot_localization_cmd = Node(
         package='robot_localization',
@@ -128,7 +136,7 @@ def generate_launch_description():
     else:
         raise FileNotFoundError(f"Gazebo setup script not found at {gazebo_setup_path}")
     
-    
+
     
     # Create the launch description and populate
     ld = LaunchDescription()
@@ -149,5 +157,6 @@ def generate_launch_description():
     ld.add_action(start_robot_localization_cmd)
     ld.add_action(start_robot_state_publisher_cmd)
     ld.add_action(start_rviz_cmd)
+    ld.add_action(start_rqt_robot_steering_node)
 
     return ld

@@ -17,30 +17,42 @@ class RGBDPointCloudPublisher(Node):
         
         # Initialize TF broadcaster to publish transformations
         self.tf_broadcaster = tf2_ros.TransformBroadcaster(self)
+
+        self.frequency = 30
+        self.width   = int(320/1)
+        self.height  = int(240/1)
+
+        self.counter = 0
         
-        # Timer to publish the point cloud at 1 Hz
-        self.timer = self.create_timer(1.0, self.publish_pointcloud)  # Publish at 1 Hz
+        # Timer to publish the point cloud at 30 Hz
+        self.timer = self.create_timer(1/self.frequency, self.publish_pointcloud)  # Publish at 30 Hz
 
     def publish_pointcloud(self):
         # Dummy RGB frame (5x5, red image)
-        rgb_frame = np.zeros((5, 5, 3), dtype=np.uint8)
-        rgb_frame[:, :, 0] =  255  # Red channel
+        rgb_frame = np.zeros((self.width, self.height, 3), dtype=np.uint8)
+        rgb_frame[:, :, 0] =  np.random.randint(255)  # R channel
+        rgb_frame[:, :, 1] =  np.random.randint(255)  # G channel
+        rgb_frame[:, :, 2] =  np.random.randint(255)  # B channel
 
-        # Dummy Depth frame (5x5, random depth between 0.5 and 2.0 meters)
-        depth_frame = np.random.uniform(0.5, 2.0, (5, 5)).astype(np.float32)
+        # Dummy Depth frame (320x240, random depth between 0.5 and 2.0 meters)
+        depth_frame = np.random.uniform(0.5, 2.0, (self.height, self.width)).astype(np.float32)
 
-        # Create point cloud data
-        points = []
-        for v in range(depth_frame.shape[0]):
-            for u in range(depth_frame.shape[1]):
-                z = depth_frame[v, u]
-                if z == 0:  # Skip points with zero depth
-                    continue
-                x = (u - depth_frame.shape[1] / 2) * z * 0.1  # Scale for visualization
-                y = (v - depth_frame.shape[0] / 2) * z * 0.1
-                r, g, b = rgb_frame[v, u]
-                rgb = struct.unpack('I', struct.pack('BBBB', b, g, r, 0))[0]  # Pack RGB into single int
-                points.append([x, y, z, rgb])
+        # Generate 3D coordinates
+        u, v = np.meshgrid(np.arange(self.width), np.arange(self.height))
+        z = depth_frame.flatten()
+        x = (u.flatten() - self.width / 2)  * z * 0.01
+        y = (v.flatten() - self.height / 2) * z * 0.01
+
+        # Pack RGB data
+        rgb = rgb_frame.reshape(-1, 3)
+        rgb_packed = (rgb[:, 0].astype(np.uint32) |  # Red channel
+                    np.left_shift(rgb[:, 1].astype(np.uint32), 8) |  # Green channel
+                    np.left_shift(rgb[:, 2].astype(np.uint32), 16))  # Blue channel
+
+        # Combine into a point cloud array
+        points = np.stack([x, y, z, rgb_packed.astype(np.float32)], axis=-1)
+
+
 
         # Create PointCloud2 message
         header = Header()
@@ -54,20 +66,32 @@ class RGBDPointCloudPublisher(Node):
             PointField(name='rgb', offset=12, datatype=PointField.UINT32, count=1),
         ]
 
-        pointcloud_msg = PointCloud2()
-        pointcloud_msg.header = header
-        pointcloud_msg.height = 1
-        pointcloud_msg.width = len(points)
-        pointcloud_msg.fields = fields
-        pointcloud_msg.is_bigendian = False
-        pointcloud_msg.point_step = 16
-        pointcloud_msg.row_step = pointcloud_msg.point_step * pointcloud_msg.width
-        pointcloud_msg.is_dense = True
-        pointcloud_msg.data = np.array(points, dtype=np.float32).tobytes()
+        pointcloud_msg = PointCloud2(
+            header=header,
+            height=1,
+            width=len(points),
+            fields=fields,
+            is_bigendian=False,
+            point_step=16,
+            row_step=16 * len(points),
+            is_dense=True,
+            data = points.astype(np.float32).tobytes()
+        )
+
+        # pointcloud_msg.header = header,
+        # pointcloud_msg.height = 1,
+        # pointcloud_msg.width = len(points),
+        # pointcloud_msg.fields = fields,
+        # pointcloud_msg.is_bigendian = False,
+        # pointcloud_msg.point_step = 16,
+        # pointcloud_msg.row_step = pointcloud_msg.point_step * pointcloud_msg.width,
+        # pointcloud_msg.is_dense = True,
+        # pointcloud_msg.data = np.array(points, dtype=np.float32).tobytes(),
 
         # Publish the PointCloud2 message
         self.pc_pub.publish(pointcloud_msg)
-        self.get_logger().info('Published RGB-D PointCloud')
+        # self.counter += 1
+        # self.get_logger().info(f'Published RGB-D PointCloud. counter = {self.counter}')
 
         # Create and publish the TF transformation (camera_link -> world)
         self.publish_tf()
