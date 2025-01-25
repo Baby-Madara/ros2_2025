@@ -38,14 +38,14 @@ class RGBDPointCloudPublisher(Node):
         rgb_frame = np.zeros((self.height, self.width, 3), dtype=np.uint8)
         
         # for different colors
-        # rgb_frame[:, :, 0] = np.random.randint(0, 255, (self.height, self.width))  # R channel
-        # rgb_frame[:, :, 1] = np.random.randint(0, 255, (self.height, self.width))  # G channel
-        # rgb_frame[:, :, 2] = np.random.randint(0, 255, (self.height, self.width))  # B channel
+        rgb_frame[:, :, 0] = np.random.randint(0, 255, (self.height, self.width))  # R channel
+        rgb_frame[:, :, 1] = np.random.randint(0, 255, (self.height, self.width))  # G channel
+        rgb_frame[:, :, 2] = np.random.randint(0, 255, (self.height, self.width))  # B channel
         
-        # for solid color
-        rgb_frame[:, :, 0] = np.random.randint(255)  # R channel
-        rgb_frame[:, :, 1] = np.random.randint(255)  # G channel
-        rgb_frame[:, :, 2] = np.random.randint(255)  # B channel
+        # # for solid color
+        # rgb_frame[:, :, 0] = np.random.randint(255)  # R channel
+        # rgb_frame[:, :, 1] = np.random.randint(255)  # G channel
+        # rgb_frame[:, :, 2] = np.random.randint(255)  # B channel
 
 
 
@@ -156,8 +156,8 @@ class RGBDPointCloudPublisher(Node):
         transform.header.frame_id = 'world'
         transform.child_frame_id = 'camera_link'
 
-        transform.transform.translation.x = 1.0
-        transform.transform.translation.y = 1.0
+        transform.transform.translation.x = 0.0
+        transform.transform.translation.y = 0.0
         transform.transform.translation.z = 1.0
 
         transform.transform.rotation.x = 0.0
