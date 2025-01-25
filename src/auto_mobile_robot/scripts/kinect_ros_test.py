@@ -1,4 +1,5 @@
 #!/usr/bin/python3
+
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import PointCloud2, PointField, Image, CameraInfo
@@ -6,11 +7,13 @@ from std_msgs.msg import Header
 import numpy as np
 import tf2_ros
 import geometry_msgs.msg
+import freenect
+import cv2
 
-class RGBDPointCloudPublisher(Node):
+class KinectPublisher(Node):
     def __init__(self):
-        super().__init__('rgbd_pointcloud_publisher')
-        
+        super().__init__('kinect_publisher')
+
         # Initialize publishers
         self.pc_pub = self.create_publisher(PointCloud2, 'camera/pointcloud', 10)
         self.image_pub = self.create_publisher(Image, 'camera/rgb/image_raw', 10)
@@ -18,38 +21,37 @@ class RGBDPointCloudPublisher(Node):
 
         # Initialize TF broadcaster
         self.tf_broadcaster = tf2_ros.TransformBroadcaster(self)
+        
+        self.counter = 0
 
-        self.frequency = 30
-        self.width = int(320)
-        self.height = int(240)
-        self.fx = 200.0  # Focal length in x
-        self.fy = 200.0  # Focal length in y
+        # Camera parameters
+        self.frequency = 20
+        self.width = 640  # Kinect resolution
+        self.height = 480
+        self.fx = 575.8  # Approximate focal length for Kinect in x
+        self.fy = 575.8  # Approximate focal length for Kinect in y
         self.cx = self.width / 2  # Principal point x
         self.cy = self.height / 2  # Principal point y
 
-        self.counter =0
-
-
-        # Timer to publish data at 30 Hz
+        # Timer to publish data at the desired frequency
         self.timer = self.create_timer(1 / self.frequency, self.publish_data)
 
+    def get_video(self):
+        """Capture the RGB video frame from Kinect."""
+        frame, _ = freenect.sync_get_video()
+        return cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+
+    def get_depth(self):
+        """Capture the depth frame from Kinect."""
+        depth, _ = freenect.sync_get_depth()
+        # Normalize depth values to range [0, 1] and scale them to meters
+        depth_normalized = depth.astype(np.float32) / 1000.0  # Convert depth to meters (if necessary)
+        return depth_normalized
+
     def publish_data(self):
-        # Generate dummy RGB and depth frames
-        rgb_frame = np.zeros((self.height, self.width, 3), dtype=np.uint8)
-        
-        # for different colors
-        rgb_frame[:, :, 0] = np.random.randint(0, 255, (self.height, self.width))  # R channel
-        rgb_frame[:, :, 1] = np.random.randint(0, 255, (self.height, self.width))  # G channel
-        rgb_frame[:, :, 2] = np.random.randint(0, 255, (self.height, self.width))  # B channel
-        
-        # # for solid color
-        # rgb_frame[:, :, 0] = np.random.randint(255)  # R channel
-        # rgb_frame[:, :, 1] = np.random.randint(255)  # G channel
-        # rgb_frame[:, :, 2] = np.random.randint(255)  # B channel
-
-
-
-        depth_frame = np.random.uniform(0.5, 2.0, (self.height, self.width)).astype(np.float32)
+        # Capture Kinect frames
+        rgb_frame = self.get_video()
+        depth_frame = self.get_depth()
 
         # Publish PointCloud2
         self.publish_pointcloud(rgb_frame, depth_frame)
@@ -60,24 +62,31 @@ class RGBDPointCloudPublisher(Node):
         # Publish Camera Info
         self.publish_camera_info()
 
-        self.counter +=1
-        self.get_logger().info(f'Published RGB-D data. counter: {self.counter}')
-
         # Publish TF
         self.publish_tf()
 
+        self.counter +=1
+        self.get_logger().info(f'Published Kinect data. {self.counter}')
+
     def publish_pointcloud(self, rgb_frame, depth_frame):
-        # Generate 3D coordinates
+        # Generate 3D coordinates using depth data
         u, v = np.meshgrid(np.arange(self.width), np.arange(self.height))
-        z = depth_frame.flatten()
-        x = (u.flatten() - self.width / 2) * z * 0.01
-        y = (v.flatten() - self.height / 2) * z * 0.01
+        z = depth_frame.flatten()  # Depth in meters
+        x = (u.flatten() - self.cx) * z / self.fx
+        y = (v.flatten() - self.cy) * z / self.fy
+
+        # Handle invalid or zero depth values (optional)
+        mask = z > 0  # Filter out zero or invalid depth values
+        x = x[mask]
+        y = y[mask]
+        z = z[mask]
+        rgb = rgb_frame.reshape(-1, 3)[mask]
 
         # Pack RGB data
-        rgb = rgb_frame.reshape(-1, 3)
         rgb_packed = (rgb[:, 0].astype(np.uint32) |
-                      np.left_shift(rgb[:, 1].astype(np.uint32), 8) |
-                      np.left_shift(rgb[:, 2].astype(np.uint32), 16))
+                        np.left_shift(rgb[:, 1].astype(np.uint32), 8) |
+                        np.left_shift(rgb[:, 2].astype(np.uint32), 16)
+                    )
 
         # Combine into a point cloud array
         points = np.stack([x, y, z, rgb_packed.astype(np.float32)], axis=-1)
@@ -118,7 +127,7 @@ class RGBDPointCloudPublisher(Node):
         image_msg.header = header
         image_msg.height = self.height
         image_msg.width = self.width
-        image_msg.encoding = 'rgb8'  # RGB format
+        image_msg.encoding = 'bgr8'  # Kinect gives BGR format
         image_msg.is_bigendian = False
         image_msg.step = self.width * 3
         image_msg.data = rgb_frame.tobytes()
@@ -169,11 +178,10 @@ class RGBDPointCloudPublisher(Node):
 
 def main(args=None):
     rclpy.init(args=args)
-    node = RGBDPointCloudPublisher()
+    node = KinectPublisher()
     rclpy.spin(node)
     node.destroy_node()
     rclpy.shutdown()
 
 if __name__ == '__main__':
     main()
-
