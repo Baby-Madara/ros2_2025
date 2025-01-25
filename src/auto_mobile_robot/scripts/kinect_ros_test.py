@@ -25,11 +25,12 @@ class KinectPublisher(Node):
         self.cy          = self.height / 2   # Principal point y
         
         # Initialize publishers
-        self.pc_pub           = self.create_publisher(PointCloud2,  'camera/pointcloud',       10)
-        self.image_pub        = self.create_publisher(Image,        'camera/rgb/image_raw',    10)
-        self.camera_info_pub  = self.create_publisher(CameraInfo,   'camera/rgb/camera_info',  10)
-        self.tf_broadcaster   = tf2_ros.TransformBroadcaster(self)
-        self.timer            = self.create_timer(1 / self.frequency, self.publish_data)
+        self.tf_broadcaster       = tf2_ros.TransformBroadcaster(self)
+        self.image_pub            = self.create_publisher(Image,        'camera/rgb/image_raw',     10)
+        self.camera_info_pub      = self.create_publisher(CameraInfo,   'camera/rgb/camera_info',   10)
+        self.depth_image_pub      = self.create_publisher(Image,        'camera/depth/image_raw',   10)
+        self.pc_pub               = self.create_publisher(PointCloud2,  'camera/depth/pointcloud',  10)
+        self.timer                = self.create_timer(1 / self.frequency, self.publish_data)
 
     def get_video(self):
         frame, _ = freenect.sync_get_video()
@@ -48,6 +49,7 @@ class KinectPublisher(Node):
 
         self.publish_camera_info()
         self.publish_rgb_image(rgb_frame)
+        self.publish_depth_image(depth_frame)  # Publish the depth image with color map
         self.publish_pointcloud(rgb_frame, depth_frame)
         self.publish_tf()
 
@@ -124,30 +126,51 @@ class KinectPublisher(Node):
             )
         )
 
+    def publish_depth_image(self, depth_frame):
+        # Apply a color map to the depth image
+        depth_colormap = cv2.applyColorMap((depth_frame * 255).astype(np.uint8), cv2.COLORMAP_VIRIDIS)
+
+        # Create Image message for depth
+        header = Header()
+        header.stamp = self.get_clock().now().to_msg()
+        header.frame_id = 'camera_link'
+
+        self.depth_image_pub.publish(
+            Image(
+                header        = header,
+                height        = self.height,
+                width         = self.width,
+                encoding      = 'bgr8',  # Depth as color-mapped image
+                is_bigendian  = False,
+                step          = self.width * 3,
+                data          = depth_colormap.tobytes(),
+            )
+        )
+
     def publish_camera_info(self):
         # Create CameraInfo message
         header = Header()
         header.stamp = self.get_clock().now().to_msg()
         header.frame_id = 'camera_link'
-
-        camera_info_msg = CameraInfo(
-            header              = header,
-            height              = self.height,
-            width               = self.width,
-            distortion_model    = 'plumb_bob',
-            d                   = [0.0, 0.0, 0.0, 0.0, 0.0],    # No distortion
-            k                   = [ self.fx, 0.0, self.cx,
-                                    0.0, self.fy, self.cy,
-                                    0.0, 0.0, 1.0],             # Intrinsic matrix
-            r                   = [ 1.0, 0.0, 0.0,
-                                    0.0, 1.0, 0.0,
-                                    0.0, 0.0, 1.0],             # Rectification matrix
-            p                   = [ self.fx, 0.0, self.cx, 0.0,
-                                    0.0, self.fy, self.cy, 0.0,
-                                    0.0, 0.0, 1.0, 0.0],        # Projection matrix
-        )
         
-        self.camera_info_pub.publish(camera_info_msg)
+        self.camera_info_pub.publish(
+            CameraInfo(
+                header              = header,
+                height              = self.height,
+                width               = self.width,
+                distortion_model    = 'plumb_bob',
+                d                   = [0.0, 0.0, 0.0, 0.0, 0.0],    # No distortion
+                k                   = [ self.fx, 0.0, self.cx,
+                                        0.0, self.fy, self.cy,
+                                        0.0, 0.0, 1.0],             # Intrinsic matrix
+                r                   = [ 1.0, 0.0, 0.0,
+                                        0.0, 1.0, 0.0,
+                                        0.0, 0.0, 1.0],             # Rectification matrix
+                p                   = [ self.fx, 0.0, self.cx, 0.0,
+                                        0.0, self.fy, self.cy, 0.0,
+                                        0.0, 0.0, 1.0, 0.0],        # Projection matrix
+            )
+        )
 
     def publish_tf(self):
         # Create a transform from camera_link to world
