@@ -1,8 +1,9 @@
 #!/usr/bin/python3
-
 import rclpy
 from rclpy.node import Node
 from sensor_msgs.msg import PointCloud2, PointField, Image, CameraInfo
+from sensor_msgs_py.point_cloud2 import create_cloud_xyz32
+from cv_bridge import CvBridge
 from std_msgs.msg import Header
 import numpy as np
 import tf2_ros
@@ -10,6 +11,13 @@ import geometry_msgs.msg
 import freenect
 import cv2
 import math
+
+
+
+
+
+
+
 
 class KinectPublisher(Node):
     def __init__(self):
@@ -36,11 +44,11 @@ class KinectPublisher(Node):
         self.v_flat      = self.v.flatten()
         
         # Initialize publishers
-        self.tf_broadcaster       = tf2_ros.TransformBroadcaster(self)
         self.image_pub            = self.create_publisher(Image,        'camera/rgb/image_raw',     10)
         self.camera_info_pub      = self.create_publisher(CameraInfo,   'camera/rgb/camera_info',   10)
         self.depth_image_pub      = self.create_publisher(Image,        'camera/depth/image_raw',   10)
         self.pc_pub               = self.create_publisher(PointCloud2,  'camera/depth/pointcloud',  10)
+        self.tf_broadcaster       = tf2_ros.TransformBroadcaster(self)
         self.timer                = self.create_timer(1 / self.frequency, self.publish_data)
 
     def get_video(self):
@@ -63,8 +71,9 @@ class KinectPublisher(Node):
         # return rgb_frame
 
     def get_depth(self):
-        # return np.full((self.height, self.width), 1.0)  # Dummy depth image
         depth, _ = freenect.sync_get_depth()
+        # registered_depth = freenect.depth_registration(depth)  # Align depth to RGB
+
         # Normalize depth values to range [0, 15] and scale them to meters
         # depth_normalized = depth.astype(np.float32) * (6.2/2047.0)
         # depth_normalized = (depth.astype(np.float32) * (6.2/2047.0) - 1.1)*1.3421 + 0.45
@@ -86,6 +95,7 @@ class KinectPublisher(Node):
         self.publish_depth_image(depth_frame)
         self.publish_pointcloud(rgb_frame, depth_frame)
         self.publish_tf()
+
         self.get_logger().info(f'Published Kinect data.')
 
     def publish_pointcloud(self, rgb_frame, depth_frame):
@@ -107,7 +117,7 @@ class KinectPublisher(Node):
         y = (self.v_flat - self.height/2) /(self.height/2) * z *self.tanH
 
         # Filter invalid points
-        mask        = z > 0.3
+        mask        = (z > 0.35) & (z < 4.0)
         x           = x[mask]
         y           = y[mask]
         z           = z[mask]
@@ -240,3 +250,6 @@ def main(args=None):
 
 if __name__ == '__main__':
     main()
+
+
+
