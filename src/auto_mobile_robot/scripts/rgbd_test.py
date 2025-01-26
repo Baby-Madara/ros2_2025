@@ -12,7 +12,7 @@ class RGBDPointCloudPublisher(Node):
         super().__init__('rgbd_pointcloud_publisher')
         
         # Initialize publishers
-        self.pc_pub = self.create_publisher(PointCloud2, 'camera/pointcloud', 10)
+        self.pc_pub = self.create_publisher(PointCloud2, 'camera/depth/pointcloud', 10)
         self.image_pub = self.create_publisher(Image, 'camera/rgb/image_raw', 10)
         self.camera_info_pub = self.create_publisher(CameraInfo, 'camera/rgb/camera_info', 10)
 
@@ -37,34 +37,25 @@ class RGBDPointCloudPublisher(Node):
         # Generate dummy RGB and depth frames
         rgb_frame = np.zeros((self.height, self.width, 3), dtype=np.uint8)
         
-        # for different colors
-        rgb_frame[:, :, 0] = np.random.randint(0, 255, (self.height, self.width))  # R channel
-        rgb_frame[:, :, 1] = np.random.randint(0, 255, (self.height, self.width))  # G channel
-        rgb_frame[:, :, 2] = np.random.randint(0, 255, (self.height, self.width))  # B channel
+        # # for different colors
+        # rgb_frame[:, :, 0] = np.random.randint(0, 255, (self.height, self.width))  # R channel
+        # rgb_frame[:, :, 1] = np.random.randint(0, 255, (self.height, self.width))  # G channel
+        # rgb_frame[:, :, 2] = np.random.randint(0, 255, (self.height, self.width))  # B channel
         
-        # # for solid color
-        # rgb_frame[:, :, 0] = np.random.randint(255)  # R channel
-        # rgb_frame[:, :, 1] = np.random.randint(255)  # G channel
-        # rgb_frame[:, :, 2] = np.random.randint(255)  # B channel
-
-
+        # for solid color
+        rgb_frame[:, :, 0] = np.random.randint(255)  # R channel
+        rgb_frame[:, :, 1] = np.random.randint(255)  # G channel
+        rgb_frame[:, :, 2] = np.random.randint(255)  # B channel
 
         depth_frame = np.random.uniform(0.5, 2.0, (self.height, self.width)).astype(np.float32)
 
-        # Publish PointCloud2
         self.publish_pointcloud(rgb_frame, depth_frame)
-
-        # Publish RGB image
         self.publish_rgb_image(rgb_frame)
-
-        # Publish Camera Info
         self.publish_camera_info()
+        self.publish_tf()
 
         self.counter +=1
         self.get_logger().info(f'Published RGB-D data. counter: {self.counter}')
-
-        # Publish TF
-        self.publish_tf()
 
     def publish_pointcloud(self, rgb_frame, depth_frame):
         # Generate 3D coordinates

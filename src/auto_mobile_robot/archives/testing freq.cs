@@ -1,22 +1,29 @@
-[INFO] [1737827792.035888106] [kinect_publisher]: Published Kinect data. 4766
-[INFO] [1737827792.079044347] [kinect_publisher]: Published Kinect data. 4767
-[INFO] [1737827792.124967965] [kinect_publisher]: Published Kinect data. 4768
-[INFO] [1737827792.162970667] [kinect_publisher]: Published Kinect data. 4769
-[INFO] [1737827792.204838654] [kinect_publisher]: Published Kinect data. 4770
-[INFO] [1737827792.251547264] [kinect_publisher]: Published Kinect data. 4771
-[INFO] [1737827792.292043136] [kinect_publisher]: Published Kinect data. 4772
-[INFO] [1737827792.334205705] [kinect_publisher]: Published Kinect data. 4773
-[INFO] [1737827792.381968949] [kinect_publisher]: Published Kinect data. 4774
-[INFO] [1737827792.420747731] [kinect_publisher]: Published Kinect data. 4775
-[INFO] [1737827792.466217063] [kinect_publisher]: Published Kinect data. 4776
-[INFO] [1737827792.513304961] [kinect_publisher]: Published Kinect data. 4777
-[INFO] [1737827792.555628454] [kinect_publisher]: Published Kinect data. 4778
-[INFO] [1737827792.602645781] [kinect_publisher]: Published Kinect data. 4779
-[INFO] [1737827792.651077647] [kinect_publisher]: Published Kinect data. 4780
-[INFO] [1737827792.691465027] [kinect_publisher]: Published Kinect data. 4781
-[INFO] [1737827792.737306848] [kinect_publisher]: Published Kinect data. 4782
-[INFO] [1737827792.785282572] [kinect_publisher]: Published Kinect data. 4783
-[INFO] [1737827792.825740062] [kinect_publisher]: Published Kinect data. 4784
-[INFO] [1737827792.874930077] [kinect_publisher]: Published Kinect data. 4785
-[INFO] [1737827792.920915745] [kinect_publisher]: Published Kinect data. 4786
-[INFO] [1737827792.963409730] [kinect_publisher]: Published Kinect data. 4787
+[INFO] [1737909061.013586607] [kinect_publisher]: Published Kinect data.
+[INFO] [1737909061.047399348] [kinect_publisher]: Published Kinect data.
+[INFO] [1737909061.080273701] [kinect_publisher]: Published Kinect data.
+[INFO] [1737909061.114326213] [kinect_publisher]: Published Kinect data.
+[INFO] [1737909061.147509191] [kinect_publisher]: Published Kinect data.
+[INFO] [1737909061.183696195] [kinect_publisher]: Published Kinect data.
+[INFO] [1737909061.216543864] [kinect_publisher]: Published Kinect data.
+[INFO] [1737909061.255236269] [kinect_publisher]: Published Kinect data.
+[INFO] [1737909061.287153553] [kinect_publisher]: Published Kinect data.
+[INFO] [1737909061.325040181] [kinect_publisher]: Published Kinect data.
+[INFO] [1737909061.360385464] [kinect_publisher]: Published Kinect data.
+[INFO] [1737909061.394631151] [kinect_publisher]: Published Kinect data.
+[INFO] [1737909061.429791049] [kinect_publisher]: Published Kinect data.
+[INFO] [1737909061.460670823] [kinect_publisher]: Published Kinect data.
+[INFO] [1737909061.495070557] [kinect_publisher]: Published Kinect data.
+[INFO] [1737909061.529802175] [kinect_publisher]: Published Kinect data.
+[INFO] [1737909061.564629995] [kinect_publisher]: Published Kinect data.
+[INFO] [1737909061.596340261] [kinect_publisher]: Published Kinect data.
+[INFO] [1737909061.633174717] [kinect_publisher]: Published Kinect data.
+[INFO] [1737909061.667136623] [kinect_publisher]: Published Kinect data.
+[INFO] [1737909061.704520597] [kinect_publisher]: Published Kinect data.
+[INFO] [1737909061.739468079] [kinect_publisher]: Published Kinect data.
+[INFO] [1737909061.772662385] [kinect_publisher]: Published Kinect data.
+[INFO] [1737909061.808631444] [kinect_publisher]: Published Kinect data.
+[INFO] [1737909061.856198802] [kinect_publisher]: Published Kinect data.
+[INFO] [1737909061.894416367] [kinect_publisher]: Published Kinect data.
+[INFO] [1737909061.926809801] [kinect_publisher]: Published Kinect data.
+[INFO] [1737909061.964161396] [kinect_publisher]: Published Kinect data.
+[INFO] [1737909061.998778485] [kinect_publisher]: Published Kinect data.

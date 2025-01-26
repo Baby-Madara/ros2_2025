@@ -9,20 +9,31 @@ import tf2_ros
 import geometry_msgs.msg
 import freenect
 import cv2
+import math
 
 class KinectPublisher(Node):
     def __init__(self):
         super().__init__('kinect_publisher')
-        
         self.counter     = 0
-        # Camera parameters
+        # Camera parameters (calibrated values from research papers):cite[8]
         self.frequency   = 30
         self.width       = 640               # Kinect resolution width
         self.height      = 480               # Kinect resolution height
-        self.fx          = 575.8             # Approximate focal length for Kinect in x
-        self.fy          = 575.8             # Approximate focal length for Kinect in y
-        self.cx          = self.width / 2    # Principal point x
-        self.cy          = self.height / 2   # Principal point y
+        self.fx          = 582.624481        # Calibrated focal length x:cite[8]
+        self.fy          = 582.691032        # Calibrated focal length y:cite[8]
+        self.cx          = 318.569184        # Calibrated principal point x:cite[8]
+        self.cy          = 257.382996        # Calibrated principal point y:cite[8]
+        
+        self.centerX = int(self.width   / 2)
+        self.centerY = int(self.height  / 2)
+        self.tanW = math.tan(57/2*math.pi/180)
+        self.tanH = math.tan(43/2*math.pi/180)
+        
+        
+        # Precompute grid for faster point cloud generation:cite[1]:cite[9]
+        self.u, self.v   = np.meshgrid(np.arange(self.width), np.arange(self.height))
+        self.u_flat      = self.u.flatten()
+        self.v_flat      = self.v.flatten()
         
         # Initialize publishers
         self.tf_broadcaster       = tf2_ros.TransformBroadcaster(self)
@@ -34,13 +45,36 @@ class KinectPublisher(Node):
 
     def get_video(self):
         frame, _ = freenect.sync_get_video()
-        return cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+        # return cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+        return frame
+        
+        # # Generate dummy RGB frames
+        # rgb_frame = np.zeros((self.height, self.width, 3), dtype=np.uint8)
+        
+        # # # for different colors
+        # # rgb_frame[:, :, 0] = np.random.randint(0, 255, (self.height, self.width))  # R channel
+        # # rgb_frame[:, :, 1] = np.random.randint(0, 255, (self.height, self.width))  # G channel
+        # # rgb_frame[:, :, 2] = np.random.randint(0, 255, (self.height, self.width))  # B channel
+        
+        # # for solid color
+        # rgb_frame[:, :, 0] = 0b10000000 #0b00001111 #np.random.randint(255)  # R channel
+        # rgb_frame[:, :, 1] = 0b10000000 #0b00110011 #np.random.randint(255)  # G channel
+        # rgb_frame[:, :, 2] = 0b10000000 #0b01010101 #np.random.randint(255)  # B channel
+        # return rgb_frame
 
     def get_depth(self):
+        # return np.full((self.height, self.width), 1.0)  # Dummy depth image
         depth, _ = freenect.sync_get_depth()
-        # Normalize depth values to range [0, 1] and scale them to meters
-        depth_normalized = depth.astype(np.float32) / 1000.0
+        # Normalize depth values to range [0, 15] and scale them to meters
+        # depth_normalized = depth.astype(np.float32) * (6.2/2047.0)
+        # depth_normalized = (depth.astype(np.float32) * (6.2/2047.0) - 1.1)*1.3421 + 0.45
+        depth_normalized = (depth.astype(np.float32) /246.0035) - 1.026316
         return depth_normalized
+
+        # # Apply non-linear correction from research papers:cite[5]:cite[8]
+        # depth_corrected = depth.astype(np.float32) * (4.0/2047.0)
+        # depth_corrected = 1.2 * np.tan(depth_corrected / 2.8425 + 1.1863)  # Non-linear correction
+        # return depth_corrected
 
     def publish_data(self):
         # Capture Kinect frames
@@ -49,36 +83,42 @@ class KinectPublisher(Node):
 
         self.publish_camera_info()
         self.publish_rgb_image(rgb_frame)
-        self.publish_depth_image(depth_frame)  # Publish the depth image with color map
+        self.publish_depth_image(depth_frame)
         self.publish_pointcloud(rgb_frame, depth_frame)
         self.publish_tf()
-
-        self.counter+=1
-        self.get_logger().info(f'Published Kinect data. {self.counter}')
+        self.get_logger().info(f'Published Kinect data.')
 
     def publish_pointcloud(self, rgb_frame, depth_frame):
-        # Generate 3D coordinates using depth data
-        u, v = np.meshgrid(np.arange(self.width), np.arange(self.height))
-        z = depth_frame.flatten()  # Depth in meters
-        x = (u.flatten() - self.cx) * z / self.fx
-        y = (v.flatten() - self.cy) * z / self.fy
+        # Use precomputed grid for faster calculations
 
-        # Handle invalid or zero depth values (optional)
-        mask = z > 0  # Filter out zero or invalid depth values
-        x = x[mask]
-        y = y[mask]
-        z = z[mask]
-        # self.get_logger().info(f'Valid points: {mask}')
-        rgb = rgb_frame.reshape(-1, 3)[mask]
+        #### d = depth_frame.flatten()
+        #### self.tanX = ({x} - self.centerX) * self.tanW / self.centerX
+        #### self.tanY = ({y} - self.centerY) * self.tanH / self.centerY
+        #### z = d / math.sqrt(1 + self.tanX**2 + self.tanY**2)
+        #### x = self.tanX * z
+        #### y = self.tanY * z
 
-        # Pack RGB data
-        rgb_packed = (rgb[:, 0].astype(np.uint32) |
-                        np.left_shift(rgb[:, 1].astype(np.uint32), 8) |
-                        np.left_shift(rgb[:, 2].astype(np.uint32), 16)
-                    )
+        # z = depth_frame.flatten()
+        # x = (self.u_flat - self.cx) * z / self.fx
+        # y = (self.v_flat - self.cy) * z / self.fy
 
-        # Combine into a point cloud array
-        points = np.stack([x, y, z, rgb_packed.astype(np.float32)], axis=-1)
+        z = depth_frame.flatten()
+        x = (self.u_flat - self.width/2)  /(self.width/2)  * z *self.tanW
+        y = (self.v_flat - self.height/2) /(self.height/2) * z *self.tanH
+
+        # Filter invalid points
+        mask        = z > 0.3
+        x           = x[mask]
+        y           = y[mask]
+        z           = z[mask]
+        rgb         = rgb_frame.reshape(-1, 3)[mask]
+
+        rgb_packed = (
+            np.left_shift(rgb[:,0].astype(np.uint32), 16)    |    # Red
+            np.left_shift(rgb[:,1].astype(np.uint32),  8)    |    # Green
+            rgb[:,2].astype(np.uint32)                            # Blue
+        ).view(np.float32)
+        points = np.stack([x, y, z, rgb_packed], axis=-1)
 
         # Create PointCloud2 message
         header = Header()
@@ -112,14 +152,12 @@ class KinectPublisher(Node):
         header.stamp = self.get_clock().now().to_msg()
         header.frame_id = 'camera_link'
 
-        # image_msg = 
-
         self.image_pub.publish(
             Image(
                 header        = header,
                 height        = self.height,
                 width         = self.width,
-                encoding      = 'bgr8',                 # Kinect gives BGR format
+                encoding      = 'rgb8',
                 is_bigendian  = False,
                 step          = self.width * 3,
                 data          = rgb_frame.tobytes(),
@@ -128,7 +166,7 @@ class KinectPublisher(Node):
 
     def publish_depth_image(self, depth_frame):
         # Apply a color map to the depth image
-        depth_colormap = cv2.applyColorMap((depth_frame * 255).astype(np.uint8), cv2.COLORMAP_VIRIDIS)
+        depth_colormap = cv2.applyColorMap((depth_frame * 255).astype(np.uint8), cv2.COLORMAP_JET) # cv2.COLORMAP_VIRIDIS | cv2.COLORMAP_JET
 
         # Create Image message for depth
         header = Header()
@@ -191,11 +229,14 @@ class KinectPublisher(Node):
         self.tf_broadcaster.sendTransform(transform)
 
 def main(args=None):
-    rclpy.init(args=args)
-    node = KinectPublisher()
-    rclpy.spin(node)
-    node.destroy_node()
-    rclpy.shutdown()
+    try:
+        rclpy.init(args=args)
+        node = KinectPublisher()
+        rclpy.spin(node)
+        node.destroy_node()
+        rclpy.shutdown()
+    except KeyboardInterrupt:
+        freenect.sync_stop()
 
 if __name__ == '__main__':
     main()
