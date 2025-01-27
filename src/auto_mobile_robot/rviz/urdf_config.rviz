@@ -1,12 +1,11 @@
 Panels:
   - Class: rviz_common/Displays
-    Help Height: 78
+    Help Height: 83
     Name: Displays
     Property Tree Widget:
-      Expanded:
-        - /Global Options1
+      Expanded: ~
       Splitter Ratio: 0.5
-    Tree Height: 523
+    Tree Height: 724
 Visualization Manager:
   Class: ""
   Displays:
@@ -188,45 +187,6 @@ Visualization Manager:
           Scale: 1
           Value: true
         Value: true
-      Enabled: false
-      Keep: 100
-      Name: Odometry
-      Position Tolerance: 0.10000000149011612
-      Shape:
-        Alpha: 1
-        Axes Length: 1
-        Axes Radius: 0.10000000149011612
-        Color: 255; 25; 0
-        Head Length: 0.30000001192092896
-        Head Radius: 0.10000000149011612
-        Shaft Length: 1
-        Shaft Radius: 0.05000000074505806
-        Value: Arrow
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        Filter size: 10
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /wheel/odometry
-      Value: false
-    - Angle Tolerance: 0.10000000149011612
-      Class: rviz_default_plugins/Odometry
-      Covariance:
-        Orientation:
-          Alpha: 0.5
-          Color: 255; 255; 127
-          Color Style: Unique
-          Frame: Local
-          Offset: 1
-          Scale: 1
-          Value: true
-        Position:
-          Alpha: 0.30000001192092896
-          Color: 204; 51; 204
-          Scale: 1
-          Value: true
-        Value: true
       Enabled: true
       Keep: 100
       Name: Odometry
@@ -248,20 +208,6 @@ Visualization Manager:
         History Policy: Keep Last
         Reliability Policy: Reliable
         Value: /odometry/filtered
-      Value: true
-    - Class: rviz_default_plugins/Image
-      Enabled: true
-      Max Value: 1
-      Median window: 5
-      Min Value: 0
-      Name: Image
-      Normalize Range: true
-      Topic:
-        Depth: 5
-        Durability Policy: Volatile
-        History Policy: Keep Last
-        Reliability Policy: Reliable
-        Value: /rgb_camera/image_raw
       Value: true
   Enabled: true
   Global Options:
@@ -329,9 +275,7 @@ Window Geometry:
   Height: 958
   Hide Left Dock: false
   Hide Right Dock: false
-  Image:
-    collapsed: false
-  QMainWindow State: 000000ff00000000fd00000001000000000000026400000364fc0200000004fb000000100044006900730070006c006100790073010000003d00000296000000c900fffffffb0000000c00430061006d006500720061010000023b000000980000000000000000fb0000000a0049006d00610067006501000002ac000000f50000000000000000fb0000000a0049006d00610067006501000002d9000000c80000002800ffffff000005160000036400000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd00000001000000000000019300000364fc0200000005fb000000100044006900730070006c006100790073010000003d00000364000000c900fffffffb0000000c00430061006d006500720061010000023e000000a10000000000000000fb0000000a0049006d00610067006501000002b8000000e90000000000000000fb0000000a0049006d00610067006501000002d9000000c80000000000000000fb0000000c00430061006d00650072006101000002d9000000c80000000000000000000005e70000036400000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Width: 1920
   X: 0
   Y: 27

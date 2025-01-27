@@ -465,14 +465,14 @@
             </visual>
 
             <sensor name="depth_camera" type="depth">
-                <pose> 0 0 0 0 0 0</pose>
-                <!-- <always_on>true</always_on> -->
+                <pose>0 0 0 0 0 0</pose>
                 <visualize>true</visualize>
                 <update_rate>10</update_rate>
                 <camera>
                     <horizontal_fov>1.02974</horizontal_fov>
                     <image>
                         <format>B8G8R8</format>
+                        <!-- <format>L16</format> -->
                         <width>640</width>
                         <height>480</height>
                     </image>
@@ -481,15 +481,26 @@
                         <far>20.0</far>
                     </clip>
                 </camera>
-                <plugin name="camera_controller" filename="libgazebo_ros_depth_camera.so"> 
-                <!-- <plugin name="camera_controller" filename="libgazebo_ros_openni_kinect.so"> -->
-                    <camera_name>depth_sensor</camera_name>
-                    <frame_name>camera_depth_frame</frame_name>
-                    <output_type>sensor_msgs/PointCloud2</output_type>
+                <plugin name="camera_controller" filename="libgazebo_ros_depth_camera.so">
+                    <ros>
+                        <namespace>/rgbd_robot</namespace>
+                        <!-- <remapping>depth_image_raw:=/camera/depth_image_raw</remapping> -->
+                    </ros>
+                    <!-- <camera_name>depth_camera</camera_name> -->
+                    <frame_name>d_camera_link</frame_name>
                     <min_depth>0.02</min_depth>
                     <max_depth>20.0</max_depth>
+                    <!-- <update_rate>30</update_rate> -->
+                    <!-- <horizontal_fov>1.047</horizontal_fov> -->
+                    <!-- <image_width>640</image_width> -->
+                    <!-- <image_height>480</image_height> -->
+                    <clip_near>0.02</clip_near>
+                    <clip_far>20.0</clip_far>
+                    <output_type>sensor_msgs/Image</output_type>
+                    <depth_format>FLOAT32</depth_format>
                 </plugin>
             </sensor>
+
         </link>
 
 
@@ -499,6 +510,23 @@
             <pose>0 0 0 0 0 0</pose>
         </joint>
 
+
+
+        <!-- Depth Camera Plugin
+            <plugin name="gazebo_ros_depth_camera" filename="libgazebo_ros_depth_camera.so">
+                <ros>
+                    <namespace>/rgbd_robot</namespace>
+                    <remapping>depth_image_raw:=/camera/depth_image_raw</remapping>
+                </ros>
+                <camera_name>depth_camera</camera_name>
+                <frame_name>camera_link</frame_name>
+                <update_rate>30</update_rate>
+                <horizontal_fov>1.047</horizontal_fov>
+                <image_width>640</image_width>
+                <image_height>480</image_height>
+                <clip_near>0.1</clip_near>
+                <clip_far>10.0</clip_far>
+            </plugin> -->
 
 
         <!-- *********************** JOINT STATE PUBLISHER *********************   -->

@@ -61,3 +61,78 @@ colcon build --symlink-install; source ~/.bashrc;
 ros2 launch auto_mobile_robot gazebo_rviz.launch.py
 
 ```
+
+===
+
+## For rgbd gazebo test
+
+## Static Robot Project
+
+This project implements a static robot represented as a box with a camera on top, designed for use with ROS 2 Humble. The robot publishes RGB and RGBD camera data, which can be visualized in RViz2.
+
+### Project Structure
+
+```md
+static_robot_project
+├── src
+│   ├── launch
+│   │   └── display.launch.py       # Launch file for the robot and camera
+│   ├── urdf
+│   │   └── robo_rgbd_gaz.urdf      # URDF file defining the robot and camera
+│   ├── rviz
+│   │   └── display.rviz             # RViz2 configuration for visualization
+│   └── scripts
+│       └── camera_publisher.py      # Python script for publishing camera data
+├── package.xml                      # Package manifest for ROS 2
+├── CMakeLists.txt                  # Build instructions for the package
+└── README.md                        # Project documentation
+```
+
+### Setup Instructions
+
+1. **Install ROS 2 Humble**: Follow the official ROS 2 installation guide for your operating system.
+
+2. **Clone the Repository**: Clone this project to your local machine.
+
+3. **Build the Package**:
+   Navigate to the root of the project and run:
+
+   ```bash
+   colcon build --symlink-install
+   ```
+
+4. **Source the Setup File**:
+
+   After building, source the setup file:
+
+   ```bash
+   source install/setup.bash
+   ```
+
+### Usage
+
+1. **Launch the Robot and Camera**:
+   Use the following command to launch the robot and camera publisher:
+
+   ```bash
+   ros2 launch static_robot_project display.launch.py
+   ```
+
+2. **Visualize in RViz2**:
+   Open RViz2 in a new terminal:
+
+   ```bash
+   ros2 run rviz2 rviz2
+   ```
+
+   Load the `display.rviz` configuration to visualize the robot and camera data.
+
+### Features
+
+- Static robot model represented as a box.
+- RGB and RGBD camera data publishing.
+- Visualization in RViz2 for easy monitoring and debugging.
+
+### Acknowledgments
+
+This project is built on the ROS 2 framework and utilizes various ROS packages for camera handling and visualization.
