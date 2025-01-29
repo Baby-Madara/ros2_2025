@@ -1,23 +1,19 @@
 #!/usr/bin/env python3
 
-
-#!/usr/bin/python3
-
 import os
 from launch                             import LaunchDescription
+from launch_ros.actions                 import Node
+from launch_ros.substitutions           import FindPackageShare
+from launch.substitutions               import LaunchConfiguration, Command, PythonExpression
 from launch.actions                     import IncludeLaunchDescription
 from launch.conditions                  import IfCondition
 from launch.launch_description_sources  import PythonLaunchDescriptionSource
-from launch.substitutions               import Command
-from launch_ros.actions                 import Node
-from launch_ros.substitutions           import FindPackageShare
-from launch.substitutions               import Command, LaunchConfiguration, PythonExpression
 import xacro
 
 
 def generate_launch_description():
     # Set paths
-    pkg_ign_gazebo_ros              = FindPackageShare(package='ros_gz_sim').find('ros_gz_sim')  # Ignition package
+    pkg_ign_gazebo_ros              = FindPackageShare(package='ros_gz_sim').find('ros_gz_sim')
     pkg_share                       = FindPackageShare(package='auto_car').find('auto_car')
     model_path                      = os.path.join(pkg_share, 'urdf/car.urdf.xacro')
     rviz_config_path                = os.path.join(pkg_share, 'rviz/urdf_config.rviz')
@@ -25,9 +21,9 @@ def generate_launch_description():
     world_path                      = os.path.join(pkg_share, 'worlds/smalltown.world')  # Ignition uses .sdf
     robot_description_raw           = xacro.process_file(model_path).toxml()
 
-    use_sim_time    = LaunchConfiguration('use_sim_time', default='true')
+    use_sim_time    = LaunchConfiguration('use_sim_time',  default='true')
     use_simulator   = LaunchConfiguration('use_simulator', default='true')
-    headless        = LaunchConfiguration('headless', default='false')
+    headless        = LaunchConfiguration('headless',      default='false')
 
     # Start robot state publisher
     node_robot_state_publisher = Node(

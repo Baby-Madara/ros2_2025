@@ -2,10 +2,12 @@
 <robot xmlns:xacro="http://ros.org/wiki/xacro">
 
     <!-- Define properties for reuse -->
-    <xacro:property name="imu_update_rate" value="100"/>
-    <xacro:property name="lidar_update_rate" value="100"/>
-    <xacro:property name="camera_update_rate" value="30"/>
-    <xacro:property name="depth_camera_update_rate" value="30"/>
+    <xacro:property name="imu_update_rate"            value="100"/>
+    <xacro:property name="lidar_update_rate"          value="100"/>
+    <xacro:property name="camera_update_rate"         value="30"/>
+    <xacro:property name="depth_camera_update_rate"   value="30"/>
+    <xacro:property name="camera_x_position"          value="0.25"/>
+    <xacro:property name="camera_z_position"          value="0.07"/>
 
     <!-- *********************** IMU SENSOR SETUP **************************  -->
     <link name="imu_link">
@@ -150,12 +152,12 @@
     <!-- *********************** CAMERA ****************************** -->
     <link name="camera_link">
         <visual>
-            <origin xyz="0 0 0" rpy="0 0 0" />
+            <origin xyz="-0.02 0 0" rpy="0 0 0" />
             <geometry>
                 <box size="0.03 0.05 0.03" />
             </geometry>
             <material name="red">
-                <color rgba="1 0.0 0.0 1.0"/>
+                <color rgba="1 0.0 0.0 0.6"/>
             </material>
         </visual>
         <gazebo>
@@ -203,7 +205,7 @@
     <joint name="cam_joint" type="fixed">
         <parent link="base_link"/>
         <child link="camera_link"/>
-        <origin        xyz="0.5 0 0.2"        rpy="0 1.5707 0" />
+        <origin        xyz="${camera_x_position} 0 ${camera_z_position}"        rpy="0 1.5707 0" />
     </joint>
 
     <!-- *********************** DEPTH CAMERA ****************************** -->
@@ -255,7 +257,7 @@
     <joint name="depth_cam_joint" type="fixed">
         <parent link="base_link"/>
         <child link="camera_depth_link"/>
-        <origin        xyz="0 0 0"        rpy="0 0 0" />
+        <origin        xyz="${camera_x_position} 0 ${camera_z_position}"        rpy="0 1.5707 0" />
     </joint>
 
 </robot>

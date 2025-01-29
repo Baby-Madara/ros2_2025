@@ -4,6 +4,10 @@
     <!-- <xacro:include filename="$(find auto_car)/urdf/wheel.xacro" /> -->
     <xacro:include filename="./wheel.xacro" />
     <xacro:include filename="./sensors.xacro" />
+    <xacro:include filename="./ros_interface.xacro" />
+    
+    <xacro:property name="x_position" value="0.25"/>
+    <xacro:property name="y_position" value="0.2"/>
 
     <link name="base_link">
         <visual>
@@ -12,7 +16,7 @@
                 <box size="0.5 0.3 0.1" />
             </geometry>
             <material name="yellow">
-                <color rgba="1 1 0.0 1.0"/>
+                <color rgba="1 1 0.0 0.6"/>
             </material>
         </visual>
 
@@ -23,10 +27,95 @@
             </geometry>
         </collision>
     </link>
-    
-    <xacro:wheel name="wheel_fr" x="0.3" y="0.3" z="0"/>
-    <xacro:wheel name="wheel_fl" x="0.3" y="-0.3" z="0"/>
-    <xacro:wheel name="wheel_rr" x="-0.3" y="0.3" z="0"/>
-    <xacro:wheel name="wheel_rl" x="-0.3" y="-0.3" z="0"/>
+
+
+    <!-- Define steering joint -->
+    <joint name="steering_joint" type="planar">
+        <origin xyz="0.15 0 0" rpy="0 0 0" />
+        <parent link="base_link" />
+        <child link="steering_link" />
+        <!-- <axis xyz="0 0 1" /> -->
+        <!-- <limit lower="-0.5" upper="0.5" effort="10" velocity="1" /> -->
+    </joint>
+
+        <!-- Define steering link -->
+    <link name="steering_link">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size="0.01 0.2 0.01" />
+            </geometry>
+            <material name="blue">
+                <color rgba="0 0 1 0.6"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size="0.01 0.2 0.01" />
+            </geometry>
+        </collision>
+    </link>
+
+
+    <joint name="steering_l_joint" type="revolute">
+        <origin xyz="0 +0.1 0" rpy="0 0 0" />
+        <parent link="steering_link" />
+        <child link="steering_l_link" />
+        <axis xyz="0 0 1" />
+        <limit lower="-0.5" upper="0.5" effort="10" velocity="1" />
+    </joint>
+
+    <link name="steering_l_link">
+        <visual>
+            <origin xyz="0.1 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size="0.2 0.01 0.01" />
+            </geometry>
+            <material name="blue">
+                <color rgba="0 0 1 0.6"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.1 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size="0.2 0.01 0.01" />
+            </geometry>
+        </collision>
+    </link>
+
+
+    <joint name="steering_r_joint" type="revolute">
+        <origin xyz="0 -0.1 0" rpy="0 0 0" />
+        <parent link="steering_link" />
+        <child link="steering_r_link" />
+        <axis xyz="0 0 1" />
+        <limit lower="-0.5" upper="0.5" effort="10" velocity="1" />
+    </joint>
+
+    <link name="steering_r_link">
+        <visual>
+            <origin xyz="0.1 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size="0.2 0.01 0.01" />
+            </geometry>
+            <material name="blue">
+                <color rgba="0 0 1 0.6"/>
+            </material>
+        </visual>
+        <collision>
+            <origin xyz="0.1 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size="0.2 0.01 0.01" />
+            </geometry>
+        </collision>
+    </link>
+
+    <!-- Define front wheel joints connected to steering link -->
+    <xacro:steering_wheel name="wheel_fr" x="0.25" y="-0.02" parent="steering_r"/>
+    <xacro:steering_wheel name="wheel_fl" x="0.25" y="+0.02" parent="steering_l"/>
+
+    <xacro:wheel name="wheel_br" x="-${x_position}"  y="-${y_position}"  z="0"  parent="base" />
+    <xacro:wheel name="wheel_bl" x="-${x_position}"  y="+${y_position}"  z="0"  parent="base" />
     
 </robot>
