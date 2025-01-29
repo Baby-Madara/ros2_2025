@@ -47,7 +47,7 @@ class KinectPublisher(Node):
         self.u, self.v   = np.meshgrid(np.arange(self.width), np.arange(self.height))
         self.u_flat      = self.u.flatten()
         self.v_flat      = self.v.flatten()
-        self.crop_filter = np.logical_and(np.logical_and(self.u_flat > 4, self.u_flat < 590), np.logical_and(self.v_flat > 40, self.v_flat < 480))
+        self.crop_filter = np.logical_and(np.logical_and(self.u_flat > 17, self.u_flat < 588), np.logical_and(self.v_flat > 42, self.v_flat < 475)) # 4, 595 | 40, 480
 
         
         # Initialize publishers
@@ -84,8 +84,8 @@ class KinectPublisher(Node):
         # correct depth by transformation
         transformed_depth = self.align_depth_to_rgb(
             depth_frame  = depth,
-            tx           = -20,
-            ty           = 20,
+            tx           = -9,
+            ty           = 21,
             angle        = 0,
             scaleX       = 0.925,
             scaleY       = 0.925,
@@ -205,8 +205,14 @@ class KinectPublisher(Node):
         depth = depth_frame.flatten().astype(np.float32)
         # z = (0.00007738*z.astype(np.float32)**2 -0.1221*z.astype(np.float32) + 48.89)
 
-        a, b, c, p, q = 0.0001382, 1.1041462, 0.1019997,  -0.0173014, 0.5553340
-        z = a*1.08108 * b**(c*depth+p) + q*1.08108
+        a, b, c, p, q = 0.0003306300984044152559, 1.0986023223715180030524, 0.0969084968304855659538,  -0.0189716446103107873322, 0.5936180018205640118722
+        z = (a * b**(c*depth+p) + q)  # *1.08108
+
+        # # Data points (talyees)
+        # x_data = np.array([450, 650,  730, 890, 990],  dtype=np.float32)
+        # f_data = np.array([0.5, 0.75, 1.0, 1.6, 3.45], dtype=np.float32)
+        # z = np.interp(depth, x_data, f_data)
+
 
         x = (self.u_flat - self.cx) * z / self.fx
         y = (self.v_flat - self.cy) * z / self.fy
@@ -224,11 +230,6 @@ class KinectPublisher(Node):
             np.left_shift(rgb[:,1].astype(np.uint32),  8)    |    # Green
             np.left_shift(rgb[:,2].astype(np.uint32),  0)         # Blue
         ).view(np.float32)
-
-
-
-        # TODO: used portion of the depth and configure x,y,z,rgb to them: x: [4, 595), y: [4, 480]
-        # crop_filter
 
         # self.get_logger().info(f'crop_filter shape: {crop_filter.shape}, crop_filter: {crop_filter}')
         # np.savetxt("crop.csv", crop_filter.astype(np.bool8), delimiter=",")

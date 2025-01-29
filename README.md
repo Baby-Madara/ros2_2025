@@ -9,8 +9,8 @@
 | 02 | Simulating robot in `Gazebo`                                                                          |  ✅  |             |
 | 03 | Simulating robot in `Gazebo_Ignition`                                                                 |      |             |
 | 04 | Adding RGBD camera in `RVIZ`                                                                          |  ✅  |             |
-| 04 | Adding RGBD camera in `Gazebo`                                                                        |      |             |
-| 04 | Adding RGBD camera in real `Kinect`                                                                   |      |             |
+| 04 | Adding RGBD camera in `Gazebo`                                                                        |  ✅  |             |
+| 04 | Adding RGBD camera in real `Kinect`                                                                   |  ✅  |             |
 | 04 | Learning ROS `Actions`                                                                                |      |             |
 | 04 | Learning ROS `Control`                                                                                |      |             |
 | 04 | Learning ROS `Service & Servers`                                                                      |      |             |
