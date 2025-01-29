@@ -18,7 +18,7 @@ find_package(ament_cmake REQUIRED)
 # find_package(<dependency> REQUIRED)
 
 install(
-  DIRECTORY config include launch maps meshes models params rviz src scripts worlds
+  DIRECTORY config include launch maps meshes models params rviz src scripts worlds urdf
   DESTINATION share/${PROJECT_NAME}
 )
 

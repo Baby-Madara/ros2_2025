@@ -1,0 +1,261 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+
+    <!-- Define properties for reuse -->
+    <xacro:property name="imu_update_rate" value="100"/>
+    <xacro:property name="lidar_update_rate" value="100"/>
+    <xacro:property name="camera_update_rate" value="30"/>
+    <xacro:property name="depth_camera_update_rate" value="30"/>
+
+    <!-- *********************** IMU SENSOR SETUP **************************  -->
+    <link name="imu_link">
+        <gazebo>
+            <gravity>true</gravity>
+            <sensor name="bmb_imu" type="imu">
+                <always_on>true</always_on>
+                <update_rate>${imu_update_rate}</update_rate>
+                <visualize>true</visualize>
+                <imu>
+                    <orientation>
+                        <x>
+                            <noise type="gaussian">
+                                <mean>0.0</mean>
+                                <stddev>2e-3</stddev>
+                            </noise>
+                        </x>
+                        <y>
+                            <noise type="gaussian">
+                                <mean>0.0</mean>
+                                <stddev>2e-3</stddev>
+                            </noise>
+                        </y>
+                        <z>
+                            <noise type="gaussian">
+                                <mean>0.0</mean>
+                                <stddev>2e-3</stddev>
+                            </noise>
+                        </z>
+                    </orientation>
+                    <angular_velocity>
+                        <x>
+                            <noise type="gaussian">
+                                <mean>0.0</mean>
+                                <stddev>2e-4</stddev>
+                            </noise>
+                        </x>
+                        <y>
+                            <noise type="gaussian">
+                                <mean>0.0</mean>
+                                <stddev>2e-4</stddev>
+                            </noise>
+                        </y>
+                        <z>
+                            <noise type="gaussian">
+                                <mean>0.0</mean>
+                                <stddev>2e-4</stddev>
+                            </noise>
+                        </z>
+                    </angular_velocity>
+                    <linear_acceleration>
+                        <x>
+                            <noise type="gaussian">
+                                <mean>0.0</mean>
+                                <stddev>1.7e-2</stddev>
+                            </noise>
+                        </x>
+                        <y>
+                            <noise type="gaussian">
+                                <mean>0.0</mean>
+                                <stddev>1.7e-2</stddev>
+                            </noise>
+                        </y>
+                        <z>
+                            <noise type="gaussian">
+                                <mean>0.0</mean>
+                                <stddev>1.7e-2</stddev>
+                            </noise>
+                        </z>
+                    </linear_acceleration>
+                </imu>
+                <plugin name="basic_mobile_bot_imu" filename="libgazebo_ros_imu_sensor.so">
+                    <initial_orientation_as_reference>false</initial_orientation_as_reference>
+                    <frame_name>imu_link</frame_name>
+                    <ros>
+                        <namespace>/imu</namespace>
+                        <remapping>~/out:=data</remapping>
+                    </ros>
+                </plugin>
+            </sensor>
+        </gazebo>
+    </link>
+
+    <joint name="imu_joint" type="fixed">
+        <origin        xyz="0 0 0"        rpy="0 0 0" />
+        <parent     link="base_link" />
+        <child      link="imu_link" />
+    </joint>
+
+    <!-- *********************** LIDAR SENSOR SETUP **************************  -->
+    <link name="lidar_link">
+        <gazebo>
+            <gravity>true</gravity>
+            <sensor name="bmb_lidar" type="ray">
+                <always_on>true</always_on>
+                <update_rate>${lidar_update_rate}</update_rate>
+                <visualize>true</visualize>
+                <ray>
+                    <scan>
+                        <horizontal>
+                            <samples>640</samples>
+                            <resolution>1</resolution>
+                            <min_angle>-2.0</min_angle>
+                            <max_angle>2.0</max_angle>
+                        </horizontal>
+                        <vertical>
+                            <samples>1</samples>
+                            <resolution>1</resolution>
+                            <min_angle>0.0</min_angle>
+                            <max_angle>0.0</max_angle>
+                        </vertical>
+                    </scan>
+                    <range>
+                        <min>0.12</min>
+                        <max>10.0</max>
+                        <resolution>0.01</resolution>
+                    </range>
+                    <noise>
+                        <type>gaussian</type>
+                        <mean>0.0</mean>
+                        <stddev>0.01</stddev>
+                    </noise>
+                </ray>
+                <plugin name="basic_mobile_bot_lidar" filename="libgazebo_ros_laser.so">
+                    <frame_name>lidar_link</frame_name>
+                    <topic_name>scan</topic_name>
+                    <gaussian_noise>0.01</gaussian_noise>
+                    <ros>
+                        <namespace>/lidar</namespace>
+                    </ros>
+                </plugin>
+            </sensor>
+        </gazebo>
+    </link>
+
+    <joint name="lidar_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="lidar_link"/>
+        <origin        xyz="0 0 0"        rpy="0 0 0" />
+    </joint>
+
+    <!-- *********************** CAMERA ****************************** -->
+    <link name="camera_link">
+        <visual>
+            <origin xyz="0 0 0" rpy="0 0 0" />
+            <geometry>
+                <box size="0.03 0.05 0.03" />
+            </geometry>
+            <material name="red">
+                <color rgba="1 0.0 0.0 1.0"/>
+            </material>
+        </visual>
+        <gazebo>
+            <pose>0.34 0 0.15 0 0 0</pose>
+
+            <!-- <visual name="camera_visual">
+                <pose>-0.005 0 0 0 0 0</pose>
+                <geometry>
+                    <box>
+                        <size>0.015 0.08 0.022</size>
+                    </box>
+                </geometry>
+                <material>
+                    <ambient>0 0 0 1.0</ambient>
+                    <diffuse>0 0 0 1.0</diffuse>
+                    <specular>0.0 0.0 0.0 1.0</specular>
+                    <emissive>0.0 0.0 0.0 1.0</emissive>
+                </material>
+            </visual> -->
+
+            <sensor name="rgbd_camera" type="camera">
+                <always_on>true</always_on>
+                <visualize>true</visualize>
+                <update_rate>${camera_update_rate}</update_rate>
+                <camera name="rgb_camera">
+                    <horizontal_fov>1.02974</horizontal_fov>
+                    <image>
+                        <width>640</width>
+                        <height>480</height>
+                        <format>R8G8B8</format>
+                    </image>
+                    <clip>
+                        <near>0.02</near>
+                        <far>100.0</far>
+                    </clip>
+                </camera>
+                <plugin name="rgb_camera_plugin" filename="libgazebo_ros_camera.so">
+                    <camera_name>rgb_camera</camera_name>
+                    <frame_name>camera_rgb_frame</frame_name>
+                </plugin>
+            </sensor>
+        </gazebo>
+    </link>
+
+    <joint name="cam_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="camera_link"/>
+        <origin        xyz="0.5 0 0.2"        rpy="0 1.5707 0" />
+    </joint>
+
+    <!-- *********************** DEPTH CAMERA ****************************** -->
+    <link name="camera_depth_link">
+        <gazebo>
+            <pose>0.34 0 0.55 0 0 0</pose>
+            <visual name="camera_depth_visual">
+                <pose>0 0 0 0 0 0</pose>
+                <geometry>
+                    <box>
+                        <size>0.045 0.08 0.022</size>
+                    </box>
+                </geometry>
+                <material>
+                    <ambient>0 0 0 1.0</ambient>
+                    <diffuse>0 0 0 1.0</diffuse>
+                    <specular>0.0 0.0 0.0 1.0</specular>
+                    <emissive>0.0 0.0 0.0 1.0</emissive>
+                </material>
+            </visual>
+
+            <sensor name="depth_camera" type="depth">
+                <visualize>true</visualize>
+                <always_on>true</always_on>
+                <update_rate>${depth_camera_update_rate}</update_rate>
+                <camera name="depth_camera">
+                    <horizontal_fov>1.02974</horizontal_fov>
+                    <image>
+                        <width>640</width>
+                        <height>480</height>
+                        <format>B8G8R8</format>
+                    </image>
+                    <clip>
+                        <near>0.02</near>
+                        <far>20.0</far>
+                    </clip>
+                </camera>
+                <plugin name="camera_controller" filename="libgazebo_ros_camera.so">
+                    <frame_name>camera_depth_link</frame_name>
+                    <min_depth>0.02</min_depth>
+                    <max_depth>20.0</max_depth>
+                    <clip_near>0.02</clip_near>
+                    <clip_far>20.0</clip_far>
+                </plugin>
+            </sensor>
+        </gazebo>
+    </link>
+
+    <joint name="depth_cam_joint" type="fixed">
+        <parent link="base_link"/>
+        <child link="camera_depth_link"/>
+        <origin        xyz="0 0 0"        rpy="0 0 0" />
+    </joint>
+
+</robot>

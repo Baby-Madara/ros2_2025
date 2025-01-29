@@ -1,0 +1,33 @@
+<?xml version="1.0"?>
+<robot xmlns:xacro="http://ros.org/wiki/xacro">
+
+<!-- TODO: xacro macro for wheel, params name x y z  -->
+
+    <xacro:macro name="wheel" params="name x y z">
+        <!-- <gazebo reference="base_link">                 <kinematic>true</kinematic>                                        <selfCollide>true</selfCollide>           <material>Gazebo/Orange</material>          </gazebo> -->
+
+        <link name="${name}_link">
+            <visual>
+                <origin xyz="0 0 0" rpy="0 0 0" />
+                <geometry>
+                    <cylinder radius="0.1" length="0.05" />
+                </geometry>
+                <material name="grey">
+                    <color rgba="0.1 0.1 0.1 1.0"/>
+                </material>
+            </visual>
+            <collision>
+                <origin xyz="${x} ${y} ${z}" rpy="0 0 0" />
+                <geometry>
+                    <cylinder radius="0.1" length="0.05" />
+                </geometry>
+            </collision>
+        </link>
+        <joint name="${name}_joint" type="continuous">
+            <origin xyz="${x} ${y} ${z}" rpy="1.5707 0 0" />
+            <parent link="base_link" />
+            <child link="${name}_link" />
+            <axis xyz="0 0 1" />
+        </joint>
+    </xacro:macro>
+</robot>
