@@ -3,9 +3,12 @@ Panels:
     Help Height: 83
     Name: Displays
     Property Tree Widget:
-      Expanded: ~
-      Splitter Ratio: 0.5
-    Tree Height: 724
+      Expanded:
+        - /Global Options1
+        - /Status1
+        - /Camera1/Visibility1
+      Splitter Ratio: 0.5734463334083557
+    Tree Height: 528
 Visualization Manager:
   Class: ""
   Displays:
@@ -54,6 +57,14 @@ Visualization Manager:
           Show Axes: false
           Show Trail: false
           Value: true
+        camera_depth_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
+        camera_link:
+          Alpha: 1
+          Show Axes: false
+          Show Trail: false
         drivewhl_l_link:
           Alpha: 1
           Show Axes: false
@@ -99,6 +110,10 @@ Visualization Manager:
           Value: true
         base_link:
           Value: true
+        camera_depth_link:
+          Value: true
+        camera_link:
+          Value: true
         drivewhl_l_link:
           Value: true
         drivewhl_r_link:
@@ -122,6 +137,10 @@ Visualization Manager:
         odom:
           base_footprint:
             base_link:
+              camera_depth_link:
+                {}
+              camera_link:
+                {}
               drivewhl_l_link:
                 {}
               drivewhl_r_link:
@@ -209,6 +228,62 @@ Visualization Manager:
         Reliability Policy: Reliable
         Value: /odometry/filtered
       Value: true
+    - Alpha: 1
+      Autocompute Intensity Bounds: true
+      Autocompute Value Bounds:
+        Max Value: 10
+        Min Value: -10
+        Value: true
+      Axis: Z
+      Channel Name: intensity
+      Class: rviz_default_plugins/PointCloud2
+      Color: 255; 255; 255
+      Color Transformer: RGB8
+      Decay Time: 0
+      Enabled: true
+      Invert Rainbow: false
+      Max Color: 255; 255; 255
+      Max Intensity: 4096
+      Min Color: 0; 0; 0
+      Min Intensity: 0
+      Name: PointCloud2
+      Position Transformer: XYZ
+      Selectable: true
+      Size (Pixels): 3
+      Size (m): 0.019999999552965164
+      Style: Flat Squares
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        Filter size: 10
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /depth_camera/points
+      Use Fixed Frame: true
+      Use rainbow: true
+      Value: true
+    - Class: rviz_default_plugins/Camera
+      Enabled: true
+      Far Plane Distance: 100
+      Image Rendering: background and overlay
+      Name: Camera
+      Overlay Alpha: 0.5
+      Topic:
+        Depth: 5
+        Durability Policy: Volatile
+        History Policy: Keep Last
+        Reliability Policy: Reliable
+        Value: /depth_camera/image_raw
+      Value: true
+      Visibility:
+        Grid: true
+        LaserScan: true
+        Odometry: true
+        PointCloud2: true
+        RobotModel: true
+        TF: true
+        Value: true
+      Zoom Factor: 1
   Enabled: true
   Global Options:
     Background Color: 48; 48; 48
@@ -249,33 +324,35 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 13.83152961730957
+      Distance: 6.343946933746338
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0.9828148484230042
-        Y: -0.546396017074585
-        Z: -0.3788487911224365
+        X: 1.6584233045578003
+        Y: -0.7440729737281799
+        Z: 1.1948044300079346
       Focal Shape Fixed Size: true
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.5998077392578125
+      Pitch: 0.23480793833732605
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz)
-      Yaw: 3.07830548286438
+      Yaw: 3.008309841156006
     Saved: ~
 Window Geometry:
+  Camera:
+    collapsed: false
   Displays:
     collapsed: false
   Height: 958
   Hide Left Dock: false
   Hide Right Dock: false
-  QMainWindow State: 000000ff00000000fd00000001000000000000019300000364fc0200000005fb000000100044006900730070006c006100790073010000003d00000364000000c900fffffffb0000000c00430061006d006500720061010000023e000000a10000000000000000fb0000000a0049006d00610067006501000002b8000000e90000000000000000fb0000000a0049006d00610067006501000002d9000000c80000000000000000fb0000000c00430061006d00650072006101000002d9000000c80000000000000000000005e70000036400000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
+  QMainWindow State: 000000ff00000000fd00000001000000000000016400000364fc0200000006fb000000100044006900730070006c006100790073010000003d000002a0000000c900fffffffb0000000c00430061006d00650072006101000002e3000000be0000002800fffffffb0000000a0049006d00610067006501000002b8000000e90000000000000000fb0000000a0049006d00610067006501000002d9000000c80000000000000000fb0000000c00430061006d00650072006101000002d9000000c80000000000000000fb0000000c00430061006d006500720061010000027e000001230000000000000000000006160000036400000004000000040000000800000008fc0000000100000002000000010000000a0054006f006f006c00730100000000ffffffff0000000000000000
   Width: 1920
   X: 0
   Y: 27

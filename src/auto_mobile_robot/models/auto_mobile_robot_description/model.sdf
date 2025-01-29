@@ -394,7 +394,8 @@
             </sensor>
         </link>
 
-    <!-- *********************** RGBD CAMERA ****************************** -->
+
+    <!-- *********************** CAMERA ****************************** -->
 
         <link name="camera_link">
             <pose>0.34 0 0.15 0 0 0</pose>
@@ -435,7 +436,6 @@
                     <frame_name>camera_rgb_frame</frame_name>
                 </plugin>
             </sensor>
-
         </link>
 
         <joint name="cam_joint" type="fixed">
@@ -445,15 +445,15 @@
         </joint>
 
 
-        <link name="camera_depth_frame">
+    <!-- *********************** DEPTH CAMERA ****************************** -->
+
+        <link name="camera_depth_link">
             <pose>0.34 0 0.55 0 0 0</pose>
-
-
-            <visual name="depth_link_visual">
-                <pose>-0.005 0 0 0 0 0</pose>
+            <visual name="camera_depth_visual">
+                <pose>0 0 0 0 0 0</pose>
                 <geometry>
                     <box>
-                        <size>0.015 0.08 0.022</size>
+                        <size>0.045 0.08 0.022</size>
                     </box>
                 </geometry>
                 <material>
@@ -465,39 +465,27 @@
             </visual>
 
             <sensor name="depth_camera" type="depth">
-                <pose>0 0 0 0 0 0</pose>
                 <visualize>true</visualize>
-                <update_rate>10</update_rate>
-                <camera>
+                <always_on>true</always_on>
+                <update_rate>30</update_rate>
+                <camera name="depth_camera">
                     <horizontal_fov>1.02974</horizontal_fov>
                     <image>
-                        <format>B8G8R8</format>
-                        <!-- <format>L16</format> -->
                         <width>640</width>
                         <height>480</height>
+                        <format>B8G8R8</format>
                     </image>
                     <clip>
                         <near>0.02</near>
                         <far>20.0</far>
                     </clip>
                 </camera>
-                <plugin name="camera_controller" filename="libgazebo_ros_depth_camera.so">
-                    <ros>
-                        <namespace>/rgbd_robot</namespace>
-                        <!-- <remapping>depth_image_raw:=/camera/depth_image_raw</remapping> -->
-                    </ros>
-                    <!-- <camera_name>depth_camera</camera_name> -->
-                    <frame_name>d_camera_link</frame_name>
+                <plugin name="camera_controller" filename="libgazebo_ros_camera.so">
+                    <frame_name>camera_depth_link</frame_name>
                     <min_depth>0.02</min_depth>
                     <max_depth>20.0</max_depth>
-                    <!-- <update_rate>30</update_rate> -->
-                    <!-- <horizontal_fov>1.047</horizontal_fov> -->
-                    <!-- <image_width>640</image_width> -->
-                    <!-- <image_height>480</image_height> -->
                     <clip_near>0.02</clip_near>
                     <clip_far>20.0</clip_far>
-                    <output_type>sensor_msgs/Image</output_type>
-                    <depth_format>FLOAT32</depth_format>
                 </plugin>
             </sensor>
 
@@ -506,27 +494,10 @@
 
         <joint name="depth_cam_joint" type="fixed">
             <parent>base_link</parent>
-            <child>camera_depth_frame</child>
+            <child>camera_depth_link</child>
             <pose>0 0 0 0 0 0</pose>
         </joint>
 
-
-
-        <!-- Depth Camera Plugin
-            <plugin name="gazebo_ros_depth_camera" filename="libgazebo_ros_depth_camera.so">
-                <ros>
-                    <namespace>/rgbd_robot</namespace>
-                    <remapping>depth_image_raw:=/camera/depth_image_raw</remapping>
-                </ros>
-                <camera_name>depth_camera</camera_name>
-                <frame_name>camera_link</frame_name>
-                <update_rate>30</update_rate>
-                <horizontal_fov>1.047</horizontal_fov>
-                <image_width>640</image_width>
-                <image_height>480</image_height>
-                <clip_near>0.1</clip_near>
-                <clip_far>10.0</clip_far>
-            </plugin> -->
 
 
         <!-- *********************** JOINT STATE PUBLISHER *********************   -->

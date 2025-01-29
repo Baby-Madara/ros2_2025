@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<robot name="robot_v2" xmlns:xacro="http://wiki.ros.org/xacro">
+  <xacro:include filename="$(find robot_v2)/urdf/sensors.xacro"/>
+
+  <link name="base_link">
+    <visual>
+      <geometry>
+        <box size="0.5 0.5 0.1"/>
+      </geometry>
+      <material name="blue">
+        <color rgba="0 0 1 1"/>
+      </material>
+    </visual>
+    <collision>
+      <geometry>
+        <box size="0.5 0.5 0.1"/>
+      </geometry>
+    </collision>
+  </link>
+
+  <joint name="base_to_camera" type="fixed">
+    <parent link="base_link"/>
+    <child link="camera_link"/>
+    <origin xyz="0 0 0.1" rpy="0 0 0"/>
+  </joint>
+
+  <link name="camera_link">
+    <xacro:classic_camera/>
+    <xacro:depth_camera/>
+  </link>
+
+  <joint name="base_to_depth_camera" type="fixed">
+    <parent link="base_link"/>
+    <child link="depth_camera_link"/>
+    <origin xyz="0.1 0 0.1" rpy="0 0 0"/>
+  </joint>
+
+  <link name="depth_camera_link">
+    <xacro:depth_camera/>
+  </link>
+</robot>

@@ -10,8 +10,11 @@ import tf2_ros
 import geometry_msgs.msg
 import freenect
 import cv2
+from scipy.ndimage import affine_transform
+import matplotlib.pyplot as plt
 import math
-
+import logging
+import time
 
 
 
@@ -23,8 +26,10 @@ class KinectPublisher(Node):
     def __init__(self):
         super().__init__('kinect_publisher')
         self.counter     = 0
+        self.frequency   = 30  # Hz
+        self.timestamps = []  # List to store timestamps of published messages
+
         # Camera parameters (calibrated values from research papers):cite[8]
-        self.frequency   = 30
         self.width       = 640               # Kinect resolution width
         self.height      = 480               # Kinect resolution height
         self.fx          = 582.624481        # Calibrated focal length x:cite[8]
@@ -34,14 +39,16 @@ class KinectPublisher(Node):
         
         self.centerX = int(self.width   / 2)
         self.centerY = int(self.height  / 2)
-        self.tanW = math.tan(57/2*math.pi/180)
-        self.tanH = math.tan(43/2*math.pi/180)
+        self.tanW = math.tan(58.5/2*math.pi/180)  #* 0.75 # 53.8, 40.8 | 57
+        self.tanH = math.tan(43/2*math.pi/180)    #* 0.75 # 53.8, 40.8 | 43
         
-        
+
         # Precompute grid for faster point cloud generation:cite[1]:cite[9]
         self.u, self.v   = np.meshgrid(np.arange(self.width), np.arange(self.height))
         self.u_flat      = self.u.flatten()
         self.v_flat      = self.v.flatten()
+        self.crop_filter = np.logical_and(np.logical_and(self.u_flat > 4, self.u_flat < 590), np.logical_and(self.v_flat > 40, self.v_flat < 480))
+
         
         # Initialize publishers
         self.image_pub            = self.create_publisher(Image,        'camera/rgb/image_raw',     10)
@@ -53,9 +60,9 @@ class KinectPublisher(Node):
 
     def get_video(self):
         frame, _ = freenect.sync_get_video()
-        # return cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)
+        # return cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)     # not needed in RVIZ
         return frame
-        
+        '''
         # # Generate dummy RGB frames
         # rgb_frame = np.zeros((self.height, self.width, 3), dtype=np.uint8)
         
@@ -69,26 +76,89 @@ class KinectPublisher(Node):
         # rgb_frame[:, :, 1] = 0b10000000 #0b00110011 #np.random.randint(255)  # G channel
         # rgb_frame[:, :, 2] = 0b10000000 #0b01010101 #np.random.randint(255)  # B channel
         # return rgb_frame
+        '''
 
     def get_depth(self):
         depth, _ = freenect.sync_get_depth()
-        # registered_depth = freenect.depth_registration(depth)  # Align depth to RGB
 
-        # Normalize depth values to range [0, 15] and scale them to meters
-        # depth_normalized = depth.astype(np.float32) * (6.2/2047.0)
-        # depth_normalized = (depth.astype(np.float32) * (6.2/2047.0) - 1.1)*1.3421 + 0.45
-        depth_normalized = (depth.astype(np.float32) /246.0035) - 1.026316
-        return depth_normalized
+        # correct depth by transformation
+        transformed_depth = self.align_depth_to_rgb(
+            depth_frame  = depth,
+            tx           = -20,
+            ty           = 20,
+            angle        = 0,
+            scaleX       = 0.925,
+            scaleY       = 0.925,
+            centerX      = self.cx,
+            centerY      = self.cy,
+        )
+        # ~/ros2_2025/src/auto_mobile_robot/archives/
+        # np.savetxt("depth.csv", transformed_depth.astype(np.uint16), delimiter=",")
+        # transformed_depth8 = (transformed_depth/2048 * 255).astype(np.uint8)
+        # cv2.imwrite('grayscale_image_opencv.png', transformed_depth8)
+        return transformed_depth
 
-        # # Apply non-linear correction from research papers:cite[5]:cite[8]
-        # depth_corrected = depth.astype(np.float32) * (4.0/2047.0)
-        # depth_corrected = 1.2 * np.tan(depth_corrected / 2.8425 + 1.1863)  # Non-linear correction
-        # return depth_corrected
+        return depth
+
+    def align_depth_to_rgb(self, depth_frame: np.array, tx=0.0, ty=0.0, angle=0.0, scaleX=1, scaleY=1, centerX=0.0, centerY=0.0):
+        """
+        Align depth frame to RGB with translation, rotation, scaling, and scaling around a specific point.
+        
+        Parameters:
+            depth_frame (np.array): Input depth frame.
+            tx (float): Translation along the x-axis.
+            ty (float): Translation along the y-axis.
+            angle (float): Rotation angle in radians.
+            scale (float): Scaling factor.
+            centerX (float): x-coordinate of the center for scaling.
+            centerY (float): y-coordinate of the center for scaling.
+            
+        Returns:
+            np.array: Transformed depth frame.
+        """
+        # Translation to move scaling point to the origin
+        translate_to_origin = np.array([
+            [1, 0, -centerX],
+            [0, 1, -centerY],
+            [0, 0, 1]
+        ])
+        
+        # Scaling and rotation
+        scaling_rotation = np.array([
+            [np.cos(angle) * scaleX, -np.sin(angle) * scaleY, 0],
+            [np.sin(angle) * scaleX,  np.cos(angle) * scaleY, 0],
+            [0, 0, 1]
+        ])
+        
+        # Translation back from the origin
+        translate_back = np.array([
+            [1, 0, centerX],
+            [0, 1, centerY],
+            [0, 0, 1]
+        ])
+        
+        # Combine transformations
+        affine_params = translate_back @ scaling_rotation @ translate_to_origin
+        
+        # Add translation
+        affine_params[0, 2] += tx
+        affine_params[1, 2] += ty
+        
+        # self.get_logger().info(f'depth_frame: {depth_frame.shape}')
+        
+        # Apply transformation
+        transformed_depth = cv2.warpAffine(depth_frame.astype(np.float32), affine_params[:2,:], dsize=(self.width, self.height))
+        
+        # self.get_logger().info(f'transformed_depth: {transformed_depth.shape}')
+        return transformed_depth
+
 
     def publish_data(self):
         # Capture Kinect frames
         rgb_frame    = self.get_video()
         depth_frame  = self.get_depth()
+
+        self.fps_calculator()
 
         self.publish_camera_info()
         self.publish_rgb_image(rgb_frame)
@@ -96,7 +166,21 @@ class KinectPublisher(Node):
         self.publish_pointcloud(rgb_frame, depth_frame)
         self.publish_tf()
 
-        self.get_logger().info(f'Published Kinect data.')
+    def fps_calculator(self):
+        samples = 50
+        current_time = self.get_clock().now().nanoseconds / 1e9  # Convert to seconds
+        self.timestamps.append(current_time)
+        if len(self.timestamps) > samples:
+            self.timestamps.pop(0)
+
+        if len(self.timestamps) == samples:
+            time_differences = [
+                self.timestamps[i] - self.timestamps[i - 1]
+                for i in range(1, len(self.timestamps))
+            ]
+            average_period = sum(time_differences) / len(time_differences)
+            frequency = 1 / average_period if average_period > 0 else 0
+            self.get_logger().info(f"frequency: {frequency:.2f} FPS")
 
     def publish_pointcloud(self, rgb_frame, depth_frame):
         # Use precomputed grid for faster calculations
@@ -108,26 +192,56 @@ class KinectPublisher(Node):
         #### x = self.tanX * z
         #### y = self.tanY * z
 
-        # z = depth_frame.flatten()
-        # x = (self.u_flat - self.cx) * z / self.fx
-        # y = (self.v_flat - self.cy) * z / self.fy
+        '''mean of the center rectangle
+        # h, w = depth_frame.shape  # 480 (height), 640 (width)
+        # h_start, h_end = h // 3, 2 * (h // 3)  # Vertical bounds
+        # w_start, w_end = w // 3, 2 * (w // 3)  # Horizontal bounds
+        # # Crop the middle rectangle
+        # middle_rectangle = depth_frame[h_start:h_end, w_start:w_end]
+        # self.get_logger().info(f'avg_z: {np.mean(middle_rectangle.flatten())}')
+        '''
 
-        z = depth_frame.flatten()
-        x = (self.u_flat - self.width/2)  /(self.width/2)  * z *self.tanW
-        y = (self.v_flat - self.height/2) /(self.height/2) * z *self.tanH
 
-        # Filter invalid points
-        mask        = (z > 0.35) & (z < 4.0)
-        x           = x[mask]
-        y           = y[mask]
-        z           = z[mask]
-        rgb         = rgb_frame.reshape(-1, 3)[mask]
+        depth = depth_frame.flatten().astype(np.float32)
+        # z = (0.00007738*z.astype(np.float32)**2 -0.1221*z.astype(np.float32) + 48.89)
 
+        a, b, c, p, q = 0.0001382, 1.1041462, 0.1019997,  -0.0173014, 0.5553340
+        z = a*1.08108 * b**(c*depth+p) + q*1.08108
+
+        x = (self.u_flat - self.cx) * z / self.fx
+        y = (self.v_flat - self.cy) * z / self.fy
+
+
+
+        # x = (self.u_flat - self.width/2)  /(self.width/2)  * z *self.tanW #* 0.75
+        # y = (self.v_flat - self.height/2) /(self.height/2) * z *self.tanH #* 0.75
+
+        # self.get_logger().info(f'z:\n{z}')
+
+        rgb        = rgb_frame.reshape(-1, 3)
         rgb_packed = (
             np.left_shift(rgb[:,0].astype(np.uint32), 16)    |    # Red
             np.left_shift(rgb[:,1].astype(np.uint32),  8)    |    # Green
-            rgb[:,2].astype(np.uint32)                            # Blue
+            np.left_shift(rgb[:,2].astype(np.uint32),  0)         # Blue
         ).view(np.float32)
+
+
+
+        # TODO: used portion of the depth and configure x,y,z,rgb to them: x: [4, 595), y: [4, 480]
+        # crop_filter
+
+        # self.get_logger().info(f'crop_filter shape: {crop_filter.shape}, crop_filter: {crop_filter}')
+        # np.savetxt("crop.csv", crop_filter.astype(np.bool8), delimiter=",")
+
+
+        # Filter invalid points
+        mask        = (z > 0.2) & (z < 10.0) & self.crop_filter
+        x           = x[mask]
+        y           = y[mask]
+        z           = z[mask]
+        rgb_packed  = rgb_packed[mask]
+        
+
         points = np.stack([x, y, z, rgb_packed], axis=-1)
 
         # Create PointCloud2 message
@@ -176,7 +290,8 @@ class KinectPublisher(Node):
 
     def publish_depth_image(self, depth_frame):
         # Apply a color map to the depth image
-        depth_colormap = cv2.applyColorMap((depth_frame * 255).astype(np.uint8), cv2.COLORMAP_JET) # cv2.COLORMAP_VIRIDIS | cv2.COLORMAP_JET
+        # depth_colormap = cv2.applyColorMap((depth_frame* 255).astype(np.uint8), cv2.COLORMAP_JET) # cv2.COLORMAP_VIRIDIS | cv2.COLORMAP_JET
+        depth_colormap = cv2.applyColorMap((depth_frame/1200.0 * 255).astype(np.uint8), cv2.COLORMAP_JET) # cv2.COLORMAP_VIRIDIS | cv2.COLORMAP_JET
 
         # Create Image message for depth
         header = Header()
@@ -188,7 +303,7 @@ class KinectPublisher(Node):
                 header        = header,
                 height        = self.height,
                 width         = self.width,
-                encoding      = 'bgr8',  # Depth as color-mapped image
+                encoding      = 'bgr8',  # Depth as color-mapped image 'bgr8'
                 is_bigendian  = False,
                 step          = self.width * 3,
                 data          = depth_colormap.tobytes(),
@@ -207,16 +322,20 @@ class KinectPublisher(Node):
                 height              = self.height,
                 width               = self.width,
                 distortion_model    = 'plumb_bob',
-                d                   = [0.0, 0.0, 0.0, 0.0, 0.0],    # No distortion
-                k                   = [ self.fx, 0.0, self.cx,
-                                        0.0, self.fy, self.cy,
-                                        0.0, 0.0, 1.0],             # Intrinsic matrix
-                r                   = [ 1.0, 0.0, 0.0,
-                                        0.0, 1.0, 0.0,
-                                        0.0, 0.0, 1.0],             # Rectification matrix
-                p                   = [ self.fx, 0.0, self.cx, 0.0,
-                                        0.0, self.fy, self.cy, 0.0,
-                                        0.0, 0.0, 1.0, 0.0],        # Projection matrix
+
+                d                   = [0.0,      0.0,     0.0,       0.0,      0.0],   # No distortion
+
+                k                   = [ self.fx, 0.0,     self.cx,
+                                        0.0,     self.fy, self.cy,
+                                        0.0,     0.0,     1.0],                        # Intrinsic matrix
+
+                r                   = [ 1.0,     0.0,     0.0,
+                                        0.0,     1.0,     0.0,
+                                        0.0,     0.0,     1.0],                        # Rectification matrix
+
+                p                   = [ self.fx, 0.0,     self.cx,   0.0,
+                                        0.0,     self.fy, self.cy,   0.0,
+                                        0.0,     0.0,     1.0,       0.0],             # Projection matrix
             )
         )
 
@@ -240,6 +359,7 @@ class KinectPublisher(Node):
 
 def main(args=None):
     try:
+        
         rclpy.init(args=args)
         node = KinectPublisher()
         rclpy.spin(node)
@@ -247,6 +367,7 @@ def main(args=None):
         rclpy.shutdown()
     except KeyboardInterrupt:
         freenect.sync_stop()
+        # freenect.shutdown(node.device)
 
 if __name__ == '__main__':
     main()
