@@ -12,7 +12,7 @@
         <link name="base_link">
 
             <collision name="base_collision">
-                <pose>0 0 0.5 0 0 0</pose>
+                <pose>0 0 0 0 0 0</pose>
                 <geometry>
                     <box>
                         <size>0.70 0.39 0.20</size>

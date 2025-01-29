@@ -4075,11 +4075,10 @@
 
         <!-- Import our own robot -->
         <include>
-            <!-- Set the location where we want to spawn the robot -->
-            <pose>0.0 0.0 0.0 0.0 0.0 0.0</pose>
-            <!-- basic_mobile_robot -->
+            <pose>0.0 0.0 0.5 0.0 0.0 0.0</pose>
             <uri>
-                file:///home/pita/ros2_2025/src/auto_mobile_robot/models/auto_mobile_robot_description</uri>
+                file:///home/pita/ros2_2025/src/auto_mobile_robot/models/auto_mobile_robot_description
+            </uri>
         </include>
     </world>
 </sdf>

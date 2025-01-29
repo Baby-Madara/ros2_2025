@@ -9,18 +9,19 @@
 | 02 | Simulating robot in `Gazebo`                                                                          |  ✅  |             |
 | 03 | Simulating robot in `Gazebo_Ignition`                                                                 |      |             |
 | 04 | Adding RGBD camera in `RVIZ`                                                                          |  ✅  |             |
-| 04 | Adding RGBD camera in `Gazebo`                                                                        |  ✅  |             |
-| 04 | Adding RGBD camera in real `Kinect`                                                                   |  ✅  |             |
-| 04 | Learning ROS `Actions`                                                                                |      |             |
-| 04 | Learning ROS `Control`                                                                                |      |             |
-| 04 | Learning ROS `Service & Servers`                                                                      |      |             |
-| 05 | Implement a mobile robot (may use `NAV2`) in real world                                               |      | `nav2` is a tool for path planning in 2D mainly. It contains different algorithms for path planning and localization, in addition to different robot configurations like differential, omniwheel robot, legged robot, etc. |
-| 06 | Implement a static robot (may use `MOVEIT2`) in real world                                            |      | `moveit2` is a tool mainly for making inverse kinematics solutions (numerical solutions) |
-| 07 | Using `Docker`, and implementing on `RasbperryPi` once, then on `Nvidia JetsonNano`                   |      | `Docker` can make containers that run (for example) a code that needs Ubuntu 22 on a Ubuntu 18 device, or on Windows          |
-| 08 | Making it IoT project                                                                                 |      |             |
-| 09 | Using Computer vision by `YOLO` or `OpenCV`                                                           |      |             |
-| 10 | Reinforcement Learning `DQN`, `PPO`, `DDPG`                                                           |      |             |
-| 11 | NLP                                                                                                   |      |             |
+| 05 | Adding RGBD camera in `Gazebo`                                                                        |  ✅  |             |
+| 06 | Adding RGBD camera in real `Kinect`                                                                   |  ✅  |             |
+| 07 | Learning ROS `Actions`                                                                                |      |             |
+| 08 | Learning ROS `Control`                                                                                |      |             |
+| 09 | Learning ROS `Service & Servers`                                                                      |      |             |
+| 10 | Implement a mobile robot (may use `NAV2`) in real world                                               |      | `nav2` is a tool for path planning in 2D mainly. It contains different algorithms for path planning and localization, in addition to different robot configurations like differential, omniwheel robot, legged robot, etc. |
+| 11 | Implement a static robot (may use `MOVEIT2`) in real world                                            |      | `moveit2` is a tool mainly for making inverse kinematics solutions (numerical solutions) |
+| 12 | Study Probability & Statistics (starting AI)                                                          |      |             |
+| 13 | Using `Docker`, and implementing on `RasbperryPi` once, then on `Nvidia JetsonNano`                   |      | `Docker` can make containers that run (for example) a code that needs Ubuntu 22 on a Ubuntu 18 device, or on Windows          |
+| 14 | Making it IoT project                                                                                 |      |             |
+| 15 | Using Computer vision by `YOLO` or `OpenCV`                                                           |      |             |
+| 16 | Reinforcement Learning `DQN`, `PPO`, `DDPG`                                                           |      |             |
+| 17 | NLP                                                                                                   |      |             |
 
 ## Achievements and Details
 

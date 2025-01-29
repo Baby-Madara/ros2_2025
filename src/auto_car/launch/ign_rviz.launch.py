@@ -14,7 +14,7 @@ from launch.substitutions               import Command, LaunchConfiguration, Pyt
 def generate_launch_description():
     # Set paths
     pkg_ign_gazebo_ros              = FindPackageShare(package='ros_gz_sim').find('ros_gz_sim')  # Ignition package
-    pkg_share                       = FindPackageShare(package='auto_mobile_robot').find('auto_mobile_robot')
+    pkg_share                       = FindPackageShare(package='auto_car').find('auto_car')
     model_path                      = os.path.join(pkg_share, 'models/auto_mobile_robot.urdf')
     rviz_config_path                = os.path.join(pkg_share, 'rviz/urdf_config.rviz')
     robot_localization_file_path    = os.path.join(pkg_share, 'config/ekf.yaml')
@@ -28,7 +28,10 @@ def generate_launch_description():
     launch_ignition_server = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(os.path.join(pkg_ign_gazebo_ros, 'launch', 'gz_sim.launch.py')),
         condition=IfCondition(use_simulator),
-        launch_arguments={'ign_args': world_path, '-v': '4'}.items()  # Ignition uses `ign_args` to specify the world
+        launch_arguments={
+            'ign_args': world_path,
+            '-v': '4'
+        }.items()  # Ignition uses `ign_args` to specify the world
     )
 
     # Start robot localization

@@ -10,6 +10,13 @@ from launch_ros.actions                 import Node
 from launch_ros.substitutions           import FindPackageShare
 from launch.substitutions               import Command, LaunchConfiguration, PythonExpression
 
+''' 
+# run this command to spawn the robot in gazebo (but first comment the launch_arguments in launch_gazebo_server, or comment the last include tag in 'smalltown.world'):
+    ros2 run gazebo_ros spawn_entity.py -entity auto_mobile_robot -file /home/pita/ros2_2025/src/auto_mobile_robot/models/auto_mobile_robot_description/model.sdf -x 0 -y 0 -z 0.5
+# to delete:
+    ros2 service call /delete_entity gazebo_msgs/srv/DeleteEntity "{name: 'auto_mobile_robot'}"
+'''
+
 
 def generate_launch_description():
     # Set paths
