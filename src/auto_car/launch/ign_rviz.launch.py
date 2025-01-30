@@ -15,10 +15,10 @@ def generate_launch_description():
     # Set paths
     pkg_ign_gazebo_ros              = FindPackageShare(package='ros_gz_sim').find('ros_gz_sim')  # Ignition package
     pkg_share                       = FindPackageShare(package='auto_car').find('auto_car')
-    model_path                      = os.path.join(pkg_share, 'models/auto_mobile_robot.urdf')
+    model_path                      = os.path.join(pkg_share, 'urdf/car.urdf.xacro')
     rviz_config_path                = os.path.join(pkg_share, 'rviz/urdf_config.rviz')
     robot_localization_file_path    = os.path.join(pkg_share, 'config/ekf.yaml')
-    world_path                      = os.path.join(pkg_share, 'worlds/smalltown.world')  # Ignition uses .sdf
+    world_path                      = os.path.join(pkg_share, 'worlds/ignition_worlds/actor_crowd.sdf')  # Ignition uses .sdf
 
     use_sim_time    = LaunchConfiguration('use_sim_time', default='true')
     use_simulator   = LaunchConfiguration('use_simulator', default='true')
@@ -28,10 +28,7 @@ def generate_launch_description():
     launch_ignition_server = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(os.path.join(pkg_ign_gazebo_ros, 'launch', 'gz_sim.launch.py')),
         condition=IfCondition(use_simulator),
-        launch_arguments={
-            'ign_args': world_path,
-            '-v': '4'
-        }.items()  # Ignition uses `ign_args` to specify the world
+        launch_arguments={'ign_args': world_path, '-v': '4'}.items()  # Ignition uses `ign_args` to specify the world
     )
 
     # Start robot localization
@@ -65,7 +62,7 @@ def generate_launch_description():
         output       = 'screen',
         arguments    = [
             '/clock@rosgraph_msgs/msg/Clock[gz.msgs.Clock',
-            '/model/auto_mobile_robot/pose@geometry_msgs/msg/Pose[gz.msgs.Pose'
+            '/model/auto_car/pose@geometry_msgs/msg/Pose[gz.msgs.Pose'
         ]
     )
 
@@ -89,7 +86,7 @@ def generate_launch_description():
     # Create the launch description and populate
     ld = LaunchDescription([
         launch_ignition_server,
-        node_robot_localization,
+        # node_robot_localization,
         node_robot_state_publisher,
         node_ros_ign_bridge,
         node_rqt_robot_steering_node,
