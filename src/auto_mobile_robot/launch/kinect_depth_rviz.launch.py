@@ -1,9 +1,9 @@
 #!/usr/bin/python3
 
 import os
-from launch import LaunchDescription
-from launch_ros.actions import Node
-from launch_ros.substitutions import FindPackageShare
+from launch                    import LaunchDescription
+from launch_ros.actions        import Node
+from launch_ros.substitutions  import FindPackageShare
 
 
 # ros2 run auto_mobile_robot kinect_ros_test.py

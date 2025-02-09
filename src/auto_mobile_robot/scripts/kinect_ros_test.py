@@ -47,7 +47,7 @@ class KinectPublisher(Node):
         self.u, self.v   = np.meshgrid(np.arange(self.width), np.arange(self.height))
         self.u_flat      = self.u.flatten()
         self.v_flat      = self.v.flatten()
-        self.crop_filter = np.logical_and(np.logical_and(self.u_flat > 17, self.u_flat < 588), np.logical_and(self.v_flat > 42, self.v_flat < 475)) # 4, 595 | 40, 480
+        self.crop_filter = np.logical_and(np.logical_and(self.u_flat > 17, self.u_flat < 588), np.logical_and(self.v_flat > 45, self.v_flat < 479)) # 4, 595 | 40, 480
 
         
         # Initialize publishers
@@ -80,6 +80,7 @@ class KinectPublisher(Node):
 
     def get_depth(self):
         depth, _ = freenect.sync_get_depth()
+        
 
         # correct depth by transformation
         transformed_depth = self.align_depth_to_rgb(
@@ -205,8 +206,9 @@ class KinectPublisher(Node):
         depth = depth_frame.flatten().astype(np.float32)
         # z = (0.00007738*z.astype(np.float32)**2 -0.1221*z.astype(np.float32) + 48.89)
 
-        a, b, c, p, q = 0.0003306300984044152559, 1.0986023223715180030524, 0.0969084968304855659538,  -0.0189716446103107873322, 0.5936180018205640118722
-        z = (a * b**(c*depth+p) + q)  # *1.08108
+        a, b, c, d = 0.0836755828039374288663, 4072.1703950245009764330462, 1.3016675275716214077448, 0.0611443794113789920730
+        z = a * np.tan(depth/b + c) + d
+        # z = (a * b**(c*depth+p) + q)  # *1.08108
 
         # a, b, c = 0.0000137212977500525456, -0.0150648187684828890887, 4.5771406187285119671060
         # z = (a*depth**2 + b*depth + c)  # *1.08108
@@ -240,7 +242,7 @@ class KinectPublisher(Node):
 
 
         # Filter invalid points
-        mask        = (z > 0.2) & (z < 10.0) & self.crop_filter
+        mask        = (z > 0.2) & (z < 9.0) & self.crop_filter
         x           = x[mask]
         y           = y[mask]
         z           = z[mask]
@@ -353,7 +355,7 @@ class KinectPublisher(Node):
 
         transform.transform.translation.x = 0.0
         transform.transform.translation.y = 0.0
-        transform.transform.translation.z = 1.0
+        transform.transform.translation.z = 0.9
 
         transform.transform.rotation.x = +0.5
         transform.transform.rotation.y = -0.5

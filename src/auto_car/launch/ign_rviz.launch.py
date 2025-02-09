@@ -18,7 +18,8 @@ def generate_launch_description():
     model_path                      = os.path.join(pkg_share, 'urdf/car.urdf.xacro')
     rviz_config_path                = os.path.join(pkg_share, 'rviz/urdf_config.rviz')
     robot_localization_file_path    = os.path.join(pkg_share, 'config/ekf.yaml')
-    world_path                      = os.path.join(pkg_share, 'worlds/ignition_worlds/actor_crowd.sdf')  # Ignition uses .sdf
+    # world_path                      = os.path.join(pkg_share, 'worlds/ignition_worlds/actor_crowd.sdf')  # Ignition uses .sdf
+    world_path                      = model_path  # Ignition uses .sdf
 
     use_sim_time    = LaunchConfiguration('use_sim_time', default='true')
     use_simulator   = LaunchConfiguration('use_simulator', default='true')
