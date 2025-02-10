@@ -17,11 +17,6 @@ import logging
 import time
 
 
-
-
-
-
-
 class KinectPublisher(Node):
     def __init__(self):
         super().__init__('kinect_publisher')
@@ -41,6 +36,8 @@ class KinectPublisher(Node):
         self.centerY = int(self.height  / 2)
         self.tanW = math.tan(58.5/2*math.pi/180)  #* 0.75 # 53.8, 40.8 | 57
         self.tanH = math.tan(43/2*math.pi/180)    #* 0.75 # 53.8, 40.8 | 43
+        self.a, self.b, self.c, self.d = 0.08367558, 4072.170, 1.3016675, 0.061144379
+
         
 
         # Precompute grid for faster point cloud generation:cite[1]:cite[9]
@@ -60,7 +57,6 @@ class KinectPublisher(Node):
 
     def get_video(self):
         frame, _ = freenect.sync_get_video()
-        # return cv2.cvtColor(frame, cv2.COLOR_RGB2BGR)     # not needed in RVIZ
         return frame
         '''
         # # Generate dummy RGB frames
@@ -184,15 +180,6 @@ class KinectPublisher(Node):
             self.get_logger().info(f"frequency: {frequency:.2f} FPS")
 
     def publish_pointcloud(self, rgb_frame, depth_frame):
-        # Use precomputed grid for faster calculations
-
-        #### d = depth_frame.flatten()
-        #### self.tanX = ({x} - self.centerX) * self.tanW / self.centerX
-        #### self.tanY = ({y} - self.centerY) * self.tanH / self.centerY
-        #### z = d / math.sqrt(1 + self.tanX**2 + self.tanY**2)
-        #### x = self.tanX * z
-        #### y = self.tanY * z
-
         '''mean of the center rectangle
         # h, w = depth_frame.shape  # 480 (height), 640 (width)
         # h_start, h_end = h // 3, 2 * (h // 3)  # Vertical bounds
@@ -202,33 +189,13 @@ class KinectPublisher(Node):
         # self.get_logger().info(f'avg_z: {np.mean(middle_rectangle.flatten())}')
         '''
 
-
         depth = depth_frame.flatten().astype(np.float32)
-        # z = (0.00007738*z.astype(np.float32)**2 -0.1221*z.astype(np.float32) + 48.89)
 
-        a, b, c, d = 0.0836755828039374288663, 4072.1703950245009764330462, 1.3016675275716214077448, 0.0611443794113789920730
-        z = a * np.tan(depth/b + c) + d
-        # z = (a * b**(c*depth+p) + q)  # *1.08108
-
-        # a, b, c = 0.0000137212977500525456, -0.0150648187684828890887, 4.5771406187285119671060
-        # z = (a*depth**2 + b*depth + c)  # *1.08108
-
-
-        # # Data points (talyees)
-        # x_data = np.array([450, 650,  730, 890, 990],  dtype=np.float32)
-        # f_data = np.array([0.5, 0.75, 1.0, 1.6, 3.45], dtype=np.float32)
-        # z = np.interp(depth, x_data, f_data)
-
+        z = self.a * np.tan(depth/self.b + self.c) + self.d
 
         x = (self.u_flat - self.cx) * z / self.fx
         y = (self.v_flat - self.cy) * z / self.fy
 
-
-
-        # x = (self.u_flat - self.width/2)  /(self.width/2)  * z *self.tanW #* 0.75
-        # y = (self.v_flat - self.height/2) /(self.height/2) * z *self.tanH #* 0.75
-
-        # self.get_logger().info(f'z:\n{z}')
 
         rgb        = rgb_frame.reshape(-1, 3)
         rgb_packed = (
@@ -240,7 +207,6 @@ class KinectPublisher(Node):
         # self.get_logger().info(f'crop_filter shape: {crop_filter.shape}, crop_filter: {crop_filter}')
         # np.savetxt("crop.csv", crop_filter.astype(np.bool8), delimiter=",")
 
-
         # Filter invalid points
         mask        = (z > 0.2) & (z < 9.0) & self.crop_filter
         x           = x[mask]
@@ -248,7 +214,6 @@ class KinectPublisher(Node):
         z           = z[mask]
         rgb_packed  = rgb_packed[mask]
         
-
         points = np.stack([x, y, z, rgb_packed], axis=-1)
 
         # Create PointCloud2 message

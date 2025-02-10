@@ -108,7 +108,7 @@ result = least_squares(residuals, initial_guess, args=(x_data, f_data))
 a, b, c, d = result.x
 
 # Output the solution
-print(f"        a, b, c, d = {a:.22f}, {b:.22f}, {c:.22f}, {d:.22f}")
+print(f"        self.a, self.b, self.c, self.d = {a:.22f}, {b:.22f}, {c:.22f}, {d:.22f}")
 print(f"f(x) = {a}*tan((x/{b}) + {c}) + {d}") # a:.7f
 
 x_test = int(input("Enter x value to test: "))
