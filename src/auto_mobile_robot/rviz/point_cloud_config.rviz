@@ -7,6 +7,7 @@ Panels:
         - /Grid1
         - /PointCloud21
         - /PointCloud21/Topic1
+        - /Camera1
         - /Camera1/Visibility1
         - /Camera1/Topic1
       Splitter Ratio: 0.5
@@ -119,10 +120,10 @@ Visualization Manager:
         Value: /camera/rgb/image_raw
       Value: true
       Visibility:
-        Grid: false
+        Grid: true
         Image: false
         PointCloud2: false
-        TF: false
+        TF: true
         Value: true
       Zoom Factor: 1
     - Class: rviz_default_plugins/Image
@@ -233,25 +234,25 @@ Visualization Manager:
   Views:
     Current:
       Class: rviz_default_plugins/Orbit
-      Distance: 0.7710434794425964
+      Distance: 4.248478889465332
       Enable Stereo Rendering:
         Stereo Eye Separation: 0.05999999865889549
         Stereo Focal Distance: 1
         Swap Stereo Eyes: false
         Value: false
       Focal Point:
-        X: 0
-        Y: 0
-        Z: 0.8500000238418579
+        X: 2.5818159580230713
+        Y: 0.614906907081604
+        Z: 1.6514077186584473
       Focal Shape Fixed Size: false
       Focal Shape Size: 0.05000000074505806
       Invert Z Axis: false
       Name: Current View
       Near Clip Distance: 0.009999999776482582
-      Pitch: 0.039796967059373856
+      Pitch: -0.17460152506828308
       Target Frame: <Fixed Frame>
       Value: Orbit (rviz_default_plugins)
-      Yaw: 3.210394859313965
+      Yaw: 3.7172434329986572
     Saved: ~
 Window Geometry:
   Camera:
