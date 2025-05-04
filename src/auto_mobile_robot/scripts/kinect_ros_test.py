@@ -25,8 +25,9 @@ class KinectPublisher(Node):
         self.timestamps  = []  # List to store timestamps of published messages
 
         # fast may make the color pixel be projected twice
-        self.fast = False
-        self.fast = True
+        self.fast = 'alg_2'
+        self.fast = 'alg_3'
+        self.fast = 'alg_1'
 
 
         # Camera parameters (calibrated values from research papers):cite[8]
@@ -99,85 +100,117 @@ class KinectPublisher(Node):
     def publish_pointcloud(self, rgb_frame, depth_frame):
 
         depth = depth_frame.astype(np.float32).ravel()
-        z = np.abs(self.a * np.tan(depth / self.b + self.c) + self.d)
+        self.z = np.abs(self.a * np.tan(depth / self.b + self.c) + self.d)
 
-        x = (self.u_flat - self.half_width) * z * self.inv_fx_ir
-        y = (self.v_flat - self.half_height) * z * self.inv_fy_ir
-
-
-        '''
-        # 1. make rgb_packed 640*480 frame
-        # 2. 
-        # 
-        '''
+        self.x = (self.u_flat - self.half_width) * self.z * self.inv_fx_ir
+        self.y = (self.v_flat - self.half_height) * self.z * self.inv_fy_ir
 
 
-        # Compute projected pixel indices (project rgb on depth)
 
-        if self.fast:
+        if self.fast == 'alg_1':
             # Homogeneous transformation without extra arrays
-            points3D = self.T_inv @ np.vstack((x, y, z, np.ones_like(z)))  # Shape: (4, N)
-            x_t, y_t, z_t = points3D[:3]  # Extract transformed coordinates
+            self.points3D = self.T_inv @ np.vstack((self.x, self.y, self.z, np.ones_like(self.z)))
+            self.x_t, self.y_t, self.z_t = self.points3D[:3]
 
-            proj_u = ((x_t * self.fx_rgb / z_t) + self.half_width  - 0.5).astype(np.int32)
-            proj_v = ((y_t * self.fy_rgb / z_t) + self.half_height - 0.5).astype(np.int32)
+            self.proj_u = ((self.x_t * self.fx_rgb / self.z_t) + self.half_width  - 0.5).astype(np.int32)
+            self.proj_v = ((self.y_t * self.fy_rgb / self.z_t) + self.half_height - 0.5).astype(np.int32)
 
             # Mask valid indices
-            valid_mask = (proj_u >= 0) & (proj_u < self.width) & (proj_v >= 0) & (proj_v < self.height)
+            self.valid_mask = (self.proj_u >= 0) & (self.proj_u < self.width) & (self.proj_v >= 0) & (self.proj_v < self.height)
 
             # Pack RGB efficiently
-            rgb = rgb_frame.reshape(-1, 3).astype(np.uint32)
-            rgb_packed = np.zeros_like(z_t, dtype=np.float32)
-            rgb_packed_view = ((rgb[:, 0] << 16) | (rgb[:, 1] << 8) | rgb[:, 2]).view(np.float32)
-            rgb_packed[valid_mask] = rgb_packed_view[proj_v[valid_mask] * self.width + proj_u[valid_mask]]
+            self.rgb = rgb_frame.reshape(-1, 3).astype(np.uint32)
+            self.rgb_packed = np.zeros_like(self.z_t, dtype=np.float32)
+            self.rgb_packed_view = ((self.rgb[:, 0] << 16) | (self.rgb[:, 1] << 8) | self.rgb[:, 2]).view(np.float32)
+            self.rgb_packed[self.valid_mask] = self.rgb_packed_view[self.proj_v[self.valid_mask] * self.width + self.proj_u[self.valid_mask]]
 
             # Apply final mask (crop + depth range + validity check)
-            final_mask = (z_t > 0.5) & (z_t < 9.0) & valid_mask #& self.crop_filter
-            points3D = np.vstack((x_t[final_mask], y_t[final_mask], z_t[final_mask], rgb_packed[final_mask])).T  # Shape: (M, 4)
+            self.final_mask = (self.z_t > 0.5) & (self.z_t < 9.0) & self.valid_mask #& self.crop_filter
+            self.points3D = np.vstack((self.x_t[self.final_mask], self.y_t[self.final_mask], self.z_t[self.final_mask], self.rgb_packed[self.final_mask])).T  # Shape: (M, 4)
         
-        else:
+        elif self.fast == 'alg_2':
             # Homogeneous coordinates transformation (preallocating memory for speed)
-            points3D = (self.T_inv @ np.column_stack((x, y, z, np.ones_like(z))).T).T  # Shape: (N, 4)
+            self.points3D = (self.T_inv @ np.column_stack((self.x, self.y, self.z, np.ones_like(self.z))).T).T  # Shape: (N, 4)
 
-            # Efficient sorting by z values
-            sorted_indices = np.argsort(points3D[:, 2])  # Can use np.argpartition for partial sorting
-            points3D       = points3D[sorted_indices]  
+            # Efficient sorting by self.z values
+            sorted_indices = np.argsort(self.points3D[:, 2])  # Can use np.argpartition for partial sorting
+            self.points3D       = self.points3D[sorted_indices]  
 
             # Extract sorted coordinates
-            x_t, y_t, z_t = points3D[:, 0], points3D[:, 1], points3D[:, 2]
+            self.x_t, self.y_t, self.z_t = self.points3D[:, 0], self.points3D[:, 1], self.points3D[:, 2]
 
-            proj_u   = ((x_t * self.fx_rgb / z_t) + self.half_width - 0.5).astype(np.int32)
-            proj_v   = ((y_t * self.fy_rgb / z_t) + self.half_height - 0.5).astype(np.int32)
-            proj_uv  = np.column_stack((proj_u, proj_v))
+            self.proj_u   = ((self.x_t * self.fx_rgb / self.z_t) + self.half_width - 0.5).astype(np.int32)
+            self.proj_v   = ((self.y_t * self.fy_rgb / self.z_t) + self.half_height - 0.5).astype(np.int32)
+            proj_uv  = np.column_stack((self.proj_u, self.proj_v))
 
             # Faster duplicate filtering using lexsort
-            valid_mask      = (proj_u >= 0) & (proj_u < self.width) & (proj_v >= 0) & (proj_v < self.height)
-            proj_uv_valid   = proj_uv[valid_mask]
+            self.valid_mask      = (self.proj_u >= 0) & (self.proj_u < self.width) & (self.proj_v >= 0) & (self.proj_v < self.height)
+            proj_uv_valid   = proj_uv[self.valid_mask]
             sort_order      = np.lexsort((proj_uv_valid[:, 1], proj_uv_valid[:, 0]))  # Sort by (u, v)
             sorted_proj_uv  = proj_uv_valid[sort_order]
             
             # Identify first occurrences
             unique_mask     = np.concatenate(([True], np.any(sorted_proj_uv[1:] != sorted_proj_uv[:-1], axis=1)))
             
-            # Map back to original valid_mask indices
-            first_occurrence_mask                           = np.zeros(valid_mask.sum(), dtype=bool)
+            # Map back to original self.valid_mask indices
+            first_occurrence_mask                           = np.zeros(self.valid_mask.sum(), dtype=bool)
             first_occurrence_mask[sort_order[unique_mask]]  = True
-            valid_mask[valid_mask]                         &= first_occurrence_mask
+            self.valid_mask[self.valid_mask]                         &= first_occurrence_mask
 
 
             # Pack RGB (memory-efficient)
-            rgb_packed       = np.zeros_like(z_t, dtype=np.float32)
-            rgb              = rgb_frame.reshape(-1, 3).astype(np.uint32)
-            rgb_packed_view  = ((rgb[:, 0] << 16) | (rgb[:, 1] << 8) | rgb[:, 2]).view(np.float32)
+            self.rgb_packed       = np.zeros_like(self.z_t, dtype=np.float32)
+            self.rgb              = rgb_frame.reshape(-1, 3).astype(np.uint32)
+            self.rgb_packed_view  = ((self.rgb[:, 0] << 16) | (self.rgb[:, 1] << 8) | self.rgb[:, 2]).view(np.float32)
 
             # Assign colors only where valid
-            valid_indices          = np.ravel_multi_index((proj_v[valid_mask], proj_u[valid_mask]), (self.height, self.width))
-            rgb_packed[valid_mask] = rgb_packed_view[valid_indices]
+            valid_indices          = np.ravel_multi_index((self.proj_v[self.valid_mask], self.proj_u[self.valid_mask]), (self.height, self.width))
+            self.rgb_packed[self.valid_mask] = self.rgb_packed_view[valid_indices]
 
             # Apply final depth filtering
-            final_mask      = (z_t > 0.49) & (z_t < 9.0) & valid_mask & self.crop_filter
-            points3D        = points3D[final_mask]
-            points3D[:, 3]  = rgb_packed[final_mask]
+            self.final_mask      = (self.z_t > 0.49) & (self.z_t < 9.0) & self.valid_mask & self.crop_filter
+            self.points3D        = self.points3D[self.final_mask]
+            self.points3D[:, 3]  = self.rgb_packed[self.final_mask]
+        
+        elif self.fast == 'alg_3':
+
+            # Transform to RGB camera frame
+            self.points3D = (self.T_inv @ np.column_stack((self.x, self.y, self.z, np.ones_like(self.z))).T).T  # Shape: (N, 4)
+            self.x_t, self.y_t, self.z_t = self.points3D[:, 0], self.points3D[:, 1], self.points3D[:, 2]
+
+            # Project to RGB frame
+            self.proj_u = ((self.x_t * self.fx_rgb / self.z_t) + self.half_width - 0.5).astype(np.int32)
+            self.proj_v = ((self.y_t * self.fy_rgb / self.z_t) + self.half_height - 0.5).astype(np.int32)
+
+            # Create a 640x480x4 array initialized with (inf, inf, inf, 0)
+            new_ar = np.full((self.height, self.width, 4), [np.inf, np.inf, np.inf, 0], dtype=np.float32)
+
+            # Flatten RGB frame and pack color
+            self.rgb = rgb_frame.reshape(-1, 3).astype(np.uint32)
+            self.rgb_packed = ((self.rgb[:, 0] << 16) | (self.rgb[:, 1] << 8) | self.rgb[:, 2]).view(np.float32)
+
+            # Flatten indices
+            self.valid_mask = (self.proj_u >= 0) & (self.proj_u < self.width) & (self.proj_v >= 0) & (self.proj_v < self.height)
+            flat_indices = np.ravel_multi_index((self.proj_v[self.valid_mask], self.proj_u[self.valid_mask]), (self.height, self.width))
+
+            # Get unique indices while keeping the smallest Z
+            sort_order = np.argsort(self.z_t[self.valid_mask])  # Sorting ensures nearest depth is prioritized
+            sorted_indices = flat_indices[sort_order]
+            _, unique_idx = np.unique(sorted_indices, return_index=True)  # Keep only first occurrence (nearest Z)
+
+            # Map back to selected points
+            final_idx = sort_order[unique_idx]
+            proj_u_f, proj_v_f = self.proj_u[self.valid_mask][final_idx], self.proj_v[self.valid_mask][final_idx]
+
+            # Assign values
+            new_ar[proj_v_f, proj_u_f, :3] = np.column_stack((self.x_t[self.valid_mask][final_idx], 
+                                                            self.y_t[self.valid_mask][final_idx], 
+                                                            self.z_t[self.valid_mask][final_idx]))
+            new_ar[proj_v_f, proj_u_f, 3] = self.rgb_packed[self.valid_mask][final_idx]  # Assign RGB packed color
+
+            # Reshape to (N, 4) format
+            mask = (new_ar[:, :, 2] > 0.5) & (new_ar[:, :, 2] < 9.0)  # Apply depth range filtering
+            self.points3D = new_ar[mask].reshape(-1, 4)
 
         # Construct PointCloud2 message
         self.point_cloud_header.stamp = self.get_clock().now().to_msg()
@@ -186,13 +219,13 @@ class KinectPublisher(Node):
             PointCloud2(
                 header        = self.point_cloud_header,
                 height        = 1,
-                width         = len(points3D),
+                width         = len(self.points3D),
                 fields        = self.fields,
                 is_bigendian  = False,
                 point_step    = 16,
-                row_step      = 16 * len(points3D),
+                row_step      = 16 * len(self.points3D),
                 is_dense      = True,
-                data          = points3D.astype(np.float32).tobytes()
+                data          = self.points3D.astype(np.float32).tobytes()
             )
         )
 
